@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SabuySoft Stock Tools + Dynamic Groups</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- SheetJS (XLSX) for Excel Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <!-- Html5-Qrcode for Real Scanning -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; }
+        .ai-glow {
+            animation: glow 1.5s infinite alternate;
+            border-color: #a855f7 !important;
+            box-shadow: 0 0 10px #d8b4fe;
+        }
+        @keyframes glow {
+            from { box-shadow: 0 0 5px #a855f7; }
+            to { box-shadow: 0 0 15px #d8b4fe; }
+        }
+        /* Notification Animation */
+        .toast-enter { transform: translateY(100%); opacity: 0; }
+        .toast-enter-active { transform: translateY(0); opacity: 1; transition: all 300ms; }
+        .toast-exit { transform: translateY(0); opacity: 1; }
+        .toast-exit-active { transform: translateY(100%); opacity: 0; transition: all 300ms; }
+        /* Hide Scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- Icons ---
+        const IconCamera = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>;
+        const IconSave = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>;
+        const IconFileSpreadsheet = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>;
+        const IconTrash2 = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
+        const IconEdit = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+        const IconBarcode = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>;
+        const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+        const IconMinus = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+        const IconSettings = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
+        const IconSparkles = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 5h4"/><path d="M3 9h4"/></svg>;
+        const IconClose = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 18 18"/></svg>;
+        const IconList = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
+        const IconSearch = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
+        const IconCloud = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>;
+
+        // --- Notification Component ---
+        const Notification = ({ message, type, onClose }) => {
+            if (!message) return null;
+            const bgColor = type === 'error' ? 'bg-red-500' : type === 'warning' ? 'bg-yellow-500' : 'bg-green-500';
+            return (
+                <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-bold flex items-center gap-2 ${bgColor} animate-bounce`}>
+                    <span>{message}</span>
+                    <button onClick={onClose} className="ml-2 hover:text-gray-200"><IconClose /></button>
+                </div>
+            );
+        };
+
+        // --- Real Scanner Component ---
+        const Scanner = ({ onScan, onClose }) => {
+            useEffect(() => {
+                const html5QrcodeScanner = new Html5QrcodeScanner(
+                    "reader",
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    /* verbose= */ false
+                );
+                
+                html5QrcodeScanner.render(
+                    (decodedText) => {
+                        onScan(decodedText);
+                        html5QrcodeScanner.clear();
+                    },
+                    (errorMessage) => {
+                        // ignore errors during scanning
+                    }
+                );
+
+                return () => {
+                    html5QrcodeScanner.clear().catch(error => console.error("Failed to clear scanner", error));
+                };
+            }, [onScan]);
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex flex-col items-center justify-center p-4">
+                    <div className="w-full max-w-sm bg-white rounded-lg overflow-hidden relative">
+                        <button onClick={onClose} className="absolute top-2 right-2 z-10 bg-gray-200 p-2 rounded-full text-gray-700">
+                            <IconClose />
+                        </button>
+                        <div id="reader" className="w-full"></div>
+                        <p className="text-center text-gray-600 p-2 text-sm">เล็งบาร์โค้ดให้อยู่ในกรอบ</p>
+                    </div>
+                </div>
+            );
+        };
+
+        function App() {
+            // State - Screens: 'home' | 'view'
+            const [currentScreen, setCurrentScreen] = useState('home');
+            
+            // State - Data
+            const [products, setProducts] = useState([]);
+            const [formData, setFormData] = useState({
+                barcode: '',
+                name: '',
+                price: '',
+                stock: 0,
+                unit: 'ชิ้น',
+                group: '' 
+            });
+            const [isCameraOpen, setIsCameraOpen] = useState(false);
+            const [editId, setEditId] = useState(null);
+            const [notification, setNotification] = useState({ message: '', type: '' });
+            
+            // Search State
+            const [searchTerm, setSearchTerm] = useState('');
+            const [searchGroup, setSearchGroup] = useState('ทั้งหมด');
+
+            // Memory State (Remembered Values - For Form Suggestions)
+            const [savedUnits, setSavedUnits] = useState(['ชิ้น', 'อัน', 'กล่อง', 'แพ็ค', 'ขวด', 'ตัว', 'เครื่อง']);
+            const [savedGroups, setSavedGroups] = useState(['ทั่วไป', 'เครื่องดื่ม', 'ขนม', 'ของใช้', 'เครื่องสำอาง', 'อุปกรณ์ไอที']);
+
+            // Settings
+            const [showSettings, setShowSettings] = useState(false);
+            const [apiKey, setApiKey] = useState('');
+            const [sheetUrl, setSheetUrl] = useState('');
+            const [isAiLoading, setIsAiLoading] = useState(false);
+            const [isSyncing, setIsSyncing] = useState(false);
+            
+            // Image Upload Ref
+            const fileInputRef = useRef(null);
+
+            // Load data & settings
+            useEffect(() => {
+                const saved = localStorage.getItem('sabuy_stock_data');
+                if (saved) setProducts(JSON.parse(saved));
+                
+                const savedKey = localStorage.getItem('gemini_api_key');
+                if (savedKey) setApiKey(savedKey);
+
+                const savedSheet = localStorage.getItem('google_sheet_url');
+                if (savedSheet) setSheetUrl(savedSheet);
+
+                // Load Memory
+                const memUnits = localStorage.getItem('mem_units');
+                if (memUnits) setSavedUnits(JSON.parse(memUnits));
+                
+                const memGroups = localStorage.getItem('mem_groups');
+                if (memGroups) setSavedGroups(JSON.parse(memGroups));
+            }, []);
+
+            // Save data
+            useEffect(() => {
+                localStorage.setItem('sabuy_stock_data', JSON.stringify(products));
+            }, [products]);
+
+            const showNotify = (msg, type = 'success') => {
+                setNotification({ message: msg, type: type });
+                setTimeout(() => setNotification({ message: '', type: '' }), 4000);
+            };
+
+            const saveSettings = () => {
+                // Validation for Google Sheet URL
+                if (sheetUrl && !sheetUrl.includes('script.google.com')) {
+                    alert('❌ ลิงก์ Google Sheet ไม่ถูกต้อง!\n\nต้องใช้ลิงก์จาก "Google Apps Script" ที่ขึ้นต้นด้วย https://script.google.com/...\n\nไม่ใช่ลิงก์ https://docs.google.com/... ครับ');
+                    return;
+                }
+
+                localStorage.setItem('gemini_api_key', apiKey);
+                localStorage.setItem('google_sheet_url', sheetUrl);
+                setShowSettings(false);
+                showNotify('บันทึกการตั้งค่าแล้ว');
+            };
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                
+                // --- FIX 1: Prevent negative price (Allow 0) ---
+                if (name === 'price') {
+                    if (parseFloat(value) < 0) return; // Ignore negative input only
+                }
+                
+                setFormData(prev => ({ ...prev, [name]: value }));
+            };
+
+            const handleStockChange = (delta) => {
+                // --- FIX 2: Allow stock to be 0 (but not negative) ---
+                setFormData(prev => ({ 
+                    ...prev, 
+                    stock: Math.max(0, parseInt(prev.stock || 0) + delta) 
+                }));
+            };
+
+            const handleScanSuccess = (decodedText) => {
+                setFormData(prev => ({ ...prev, barcode: decodedText }));
+                setIsCameraOpen(false);
+                showNotify(`สแกนสำเร็จ: ${decodedText}`);
+                
+                // Check if product exists
+                const existing = products.find(p => p.barcode === decodedText);
+                if(existing) {
+                    if(confirm('พบสินค้านี้แล้ว ต้องการแก้ไขข้อมูลหรือไม่?')) {
+                        handleEdit(existing);
+                        setCurrentScreen('home');
+                    }
+                }
+            };
+
+            // --- Google Sheet Sync (Updated Format) ---
+            const syncToSheet = async (product) => {
+                if (!sheetUrl) return; 
+                
+                setIsSyncing(true);
+                try {
+                    // Send EXACT structure as export excel
+                    const exportData = {
+                        'ID': product.id,
+                        'รหัสสินค้า': '',
+                        'Barcode หลัก': product.barcode,
+                        'ชื่อสินค้า': product.name,
+                        'Stock': parseFloat(product.stock).toFixed(3),
+                        'ราคาขาย 1': parseFloat(product.price || 0).toFixed(3),
+                        'ราคาขาย 2': '0.000',
+                        'ราคาขาย 3': '0.000',
+                        'ราคาขาย 4': '0.000',
+                        'ราคาขาย 5': '0.000',
+                        'ราคาขายต่ำสุด': '0.000',
+                        'ต้นทุนมาตรฐาน': '0.000',
+                        'หน่วยเล็กที่สุด': product.unit,
+                        'ชื่อสินค้า 2': '',
+                        'จำนวนที่ได้ราคาช่อง 2': '0.000',
+                        'จำนวนที่ได้ราคาช่อง 3': '0.000',
+                        'จำนวนที่ได้ราคาช่อง 4': '0.000',
+                        'จำนวนที่ได้ราคาช่อง 5': '0.000',
+                        'Extra Volume': '',
+                        'จำนวนสินค้าเป็นทศนิยมได้': 'False',
+                        'ส่วนลดสมาชิก 1(%)': '0.00',
+                        'ส่วนลดสมาชิก 2(%)': '0.00',
+                        'ส่วนลดสมาชิก 3(%)': '0.00',
+                        'กว้าง': '0.000',
+                        'ยาว': '0.000',
+                        'สูง': '0.000',
+                        'น้ำหนัก': '0.000',
+                        'น้ำหนักรวมบรรจุภัณฑ์': '0.000',
+                        'จำนวนที่เตือนใกล้หมด': '',
+                        'จำนวนที่ต้องการให้มี': '',
+                        'ประเภทสินค้า': '', 
+                        'กลุ่มสินค้า': product.group || '', 
+                        'Brand (ยี่ห้อสินค้า)': '',
+                        'Supplier หลัก': '',
+                        'VAT': 'True',
+                        'สะสมแต้มได้': 'True',
+                        'Point (แต้มที่ได้)': '0.000',
+                        'ระยะเวลารับประกัน': '',
+                        'Hot Product': 'False',
+                        'สินค้าสำเร็จรูป': 'False',
+                        'Location (ที่เก็บสินค้า)': '',
+                        'Printer ID': '',
+                        'Comment (หมายเหตุ)': '',
+                        'แสดงบน Website': 'True',
+                        'แสดงหน่วยเล็ก Website': 'True',
+                        'แสดงใหญ่บน Website': 'True',
+                        'คำอธิบายบน Website': '', 
+                        'Status': 'True',
+                        'Create Officer': 'Admin',
+                        'Create Time': product.timestamp,
+                        'Update Officer': 'Admin',
+                        'Update Time': product.timestamp
+                    };
+
+                    await fetch(sheetUrl, {
+                        method: 'POST',
+                        mode: 'no-cors', 
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(exportData)
+                    });
+                    showNotify("☁️ ส่งข้อมูลไป Google Sheet แล้ว!");
+                } catch (error) {
+                    console.error("Sync Error:", error);
+                    showNotify("Sync Failed: เช็คอินเทอร์เน็ต", "error");
+                } finally {
+                    setIsSyncing(false);
+                }
+            };
+
+            // --- AI Logic with Retry ---
+            const callGemini = async (imageData = null) => {
+                const cleanKey = apiKey ? apiKey.trim() : '';
+
+                if (!cleanKey) {
+                    showNotify('กรุณาใส่ API Key ในการตั้งค่าก่อน', 'error');
+                    setShowSettings(true);
+                    return;
+                }
+
+                setIsAiLoading(true);
+                
+                const promptText = imageData ? `
+                    วิเคราะห์รูปสินค้า:
+                    1. ชื่อสินค้า (ภาษาไทย)
+                    2. กลุ่มสินค้า (ระบุหมวดหมู่ที่เหมาะสม เช่น เครื่องดื่ม, ขนม, ของใช้)
+                    3. ราคาขายปลีกมาตรฐานในประเทศไทย (บาท - เฉพาะตัวเลข)
+                    4. หน่วยนับ (เช่น ชิ้น, ขวด, ห่อ)
+                    ตอบเป็น JSON เท่านั้น: {"name": "...", "group": "...", "price": 0, "unit": "..."}
+                ` : `
+                    วิเคราะห์สินค้าชื่อ: "${formData.name}"
+                    1. ระบุ "group" (ระบุหมวดหมู่ที่เหมาะสม)
+                    2. แนะนำ "price" (ราคาขายปลีกมาตรฐานในไทย บาท)
+                    3. แนะนำ "unit" (หน่วยนับ)
+                    ตอบเป็น JSON เท่านั้น: {"group": "...", "price": 0, "unit": "..."}
+                `;
+
+                const payload = {
+                    contents: [{
+                        parts: [
+                            { text: promptText },
+                            ...(imageData ? [{ inlineData: { mimeType: "image/jpeg", data: imageData.split(',')[1] } }] : [])
+                        ]
+                    }]
+                };
+
+                const makeRequest = async (retryCount = 0) => {
+                    try {
+                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const data = await response.json();
+                        
+                        if(data.error) {
+                            if (data.error.code === 429 && retryCount < 3) {
+                                const delay = Math.pow(2, retryCount) * 2000;
+                                console.log(`Quota exceeded. Retrying in ${delay/1000} seconds... (${retryCount + 1}/3)`);
+                                showNotify(`AI ยุ่งอยู่ กำลังลองใหม่ใน ${delay/1000} วิ... (${retryCount + 1})`, "warning");
+                                await new Promise(resolve => setTimeout(resolve, delay));
+                                return makeRequest(retryCount + 1);
+                            }
+                            
+                            if (data.error.message.includes('API key not valid')) {
+                                throw new Error('API Key ไม่ถูกต้อง กรุณาตรวจสอบ');
+                            }
+                            throw new Error(data.error.message);
+                        }
+
+                        const aiText = data.candidates[0].content.parts[0].text;
+                        const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+                        
+                        if (jsonMatch) {
+                            const result = JSON.parse(jsonMatch[0]);
+                            setFormData(prev => ({
+                                ...prev,
+                                name: result.name || prev.name, 
+                                group: result.group || prev.group, 
+                                price: result.price || prev.price,
+                                unit: result.unit || prev.unit
+                            }));
+                            
+                            updateMemory(result.group, result.unit);
+                            showNotify("AI วิเคราะห์ข้อมูลเรียบร้อย!");
+                        }
+                    } catch (error) {
+                        console.error("AI Error:", error);
+                        if (error.message.includes('quota') || error.message.includes('429')) {
+                            showNotify("โควต้า AI เต็ม กรุณารอสักครู่แล้วลองใหม่", "error");
+                        } else if (error.message.includes('not found')) {
+                            showNotify("ไม่พบโมเดล AI กรุณาตรวจสอบ API Key หรือลองใช้รุ่น 1.5", "error");
+                        } else {
+                            showNotify(error.message, "error");
+                        }
+                        
+                        if (error.message.includes('API Key')) {
+                            setShowSettings(true);
+                        }
+                    } finally {
+                        setIsAiLoading(false);
+                    }
+                };
+
+                makeRequest();
+            };
+
+            const handleImageUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    callGemini(reader.result);
+                };
+                reader.readAsDataURL(file);
+            };
+
+            const updateMemory = (group, unit) => {
+                if (group) {
+                    const cleanGroup = group.trim();
+                    if (!savedGroups.includes(cleanGroup)) {
+                        const newGroups = [...savedGroups, cleanGroup];
+                        setSavedGroups(newGroups);
+                        localStorage.setItem('mem_groups', JSON.stringify(newGroups));
+                    }
+                }
+                if (unit) {
+                    const cleanUnit = unit.trim();
+                    if (!savedUnits.includes(cleanUnit)) {
+                        const newUnits = [...savedUnits, cleanUnit];
+                        setSavedUnits(newUnits);
+                        localStorage.setItem('mem_units', JSON.stringify(newUnits));
+                    }
+                }
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                
+                // --- FIX 1: Duplicate Barcode Check ---
+                // ถ้าไม่ใช่การแก้ไข (เพิ่มใหม่) ให้เช็คบาร์โค้ดซ้ำ
+                if (!editId) {
+                    const isDup = products.some(p => p.barcode === formData.barcode);
+                    if(isDup) {
+                        showNotify('❌ บาร์โค้ดนี้มีอยู่ในระบบแล้ว!', 'error');
+                        return; // หยุดการบันทึกทันที
+                    }
+                }
+
+                // Validation
+                if (!formData.barcode) {
+                    showNotify('❌ กรุณากรอกหรือสแกน "บาร์โค้ด"', 'error');
+                    return;
+                }
+                if (!formData.name) {
+                    showNotify('❌ กรุณากรอก "ชื่อสินค้า"', 'error');
+                    return;
+                }
+
+                // 1. บันทึกข้อมูล
+                const newProduct = {
+                    id: editId || (products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1), // FIX: Auto-increment ID starting from 1
+                    ...formData,
+                    timestamp: new Date().toLocaleString('th-TH')
+                };
+
+                if (editId) {
+                    setProducts(prev => prev.map(p => p.id === editId ? newProduct : p));
+                    setEditId(null);
+                    showNotify("อัปเดตข้อมูลสำเร็จ!");
+                } else {
+                    setProducts(prev => [newProduct, ...prev]);
+                    showNotify("บันทึกสินค้าใหม่แล้ว!");
+                }
+
+                // 2. Update Memory (Group & Unit)
+                updateMemory(formData.group, formData.unit);
+
+                // 3. Sync to Google Sheet
+                syncToSheet(newProduct);
+
+                // 4. Reset Form
+                setFormData({
+                    barcode: '',
+                    name: '',
+                    price: '',
+                    stock: 1,
+                    unit: 'ชิ้น',
+                    group: 'ทั่วไป',
+                    description: ''
+                });
+            };
+
+            // --- FIX 4: Delete Function Fix (Added stopPropagation) ---
+            const handleDelete = (e, id) => {
+                if (e && typeof e.stopPropagation === 'function') {
+                    e.stopPropagation();
+                }
+                
+                // Fallback for different call types
+                const targetId = typeof e === 'number' || typeof e === 'string' ? e : id;
+
+                if (confirm('ต้องการลบรายการนี้ใช่หรือไม่?')) {
+                    setProducts(prev => prev.filter(p => p.id !== targetId));
+                    showNotify("ลบรายการแล้ว");
+                }
+            };
+
+            const handleEdit = (product) => {
+                setFormData(product);
+                setEditId(product.id);
+                setCurrentScreen('home'); 
+                window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            };
+
+            const exportToExcel = () => {
+                if (products.length === 0) {
+                    showNotify('ไม่มีข้อมูลให้ Export', 'error');
+                    return;
+                }
+
+                const excelData = products.map((p, index) => ({
+                    'ID': index + 1, // Running ID for Excel starting at 1
+                    'รหัสสินค้า': '',
+                    'Barcode หลัก': p.barcode,
+                    'ชื่อสินค้า': p.name,
+                    'Stock': parseFloat(p.stock).toFixed(3),
+                    'ราคาขาย 1': parseFloat(p.price || 0).toFixed(3),
+                    'ราคาขาย 2': '0.000',
+                    'ราคาขาย 3': '0.000',
+                    'ราคาขาย 4': '0.000',
+                    'ราคาขาย 5': '0.000',
+                    'ราคาขายต่ำสุด': '0.000',
+                    'ต้นทุนมาตรฐาน': '0.000',
+                    'หน่วยเล็กที่สุด': p.unit,
+                    'ชื่อสินค้า 2': '',
+                    'จำนวนที่ได้ราคาช่อง 2': '0.000',
+                    'จำนวนที่ได้ราคาช่อง 3': '0.000',
+                    'จำนวนที่ได้ราคาช่อง 4': '0.000',
+                    'จำนวนที่ได้ราคาช่อง 5': '0.000',
+                    'Extra Volume': '',
+                    'จำนวนสินค้าเป็นทศนิยมได้': 'False',
+                    'ส่วนลดสมาชิก 1(%)': '0.00',
+                    'ส่วนลดสมาชิก 2(%)': '0.00',
+                    'ส่วนลดสมาชิก 3(%)': '0.00',
+                    'กว้าง': '0.000',
+                    'ยาว': '0.000',
+                    'สูง': '0.000',
+                    'น้ำหนัก': '0.000',
+                    'น้ำหนักรวมบรรจุภัณฑ์': '0.000',
+                    'จำนวนที่เตือนใกล้หมด': '',
+                    'จำนวนที่ต้องการให้มี': '',
+                    'ประเภทสินค้า': '', 
+                    'กลุ่มสินค้า': p.group || '', 
+                    'Brand (ยี่ห้อสินค้า)': '',
+                    'Supplier หลัก': '',
+                    'VAT': 'True',
+                    'สะสมแต้มได้': 'True',
+                    'Point (แต้มที่ได้)': '0.000',
+                    'ระยะเวลารับประกัน': '',
+                    'Hot Product': 'False',
+                    'สินค้าสำเร็จรูป': 'False',
+                    'Location (ที่เก็บสินค้า)': '',
+                    'Printer ID': '',
+                    'Comment (หมายเหตุ)': '',
+                    'แสดงบน Website': 'True',
+                    'แสดงหน่วยเล็ก Website': 'True',
+                    'แสดงใหญ่บน Website': 'True',
+                    'คำอธิบายบน Website': '', 
+                    'Status': 'True',
+                    'Create Officer': 'Admin',
+                    'Create Time': p.timestamp,
+                    'Update Officer': 'Admin',
+                    'Update Time': p.timestamp
+                }));
+
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Product List");
+                
+                const fileName = `SabuySoft_Import_${new Date().toISOString().slice(0,10)}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                showNotify("ดาวน์โหลด Excel สำเร็จ!");
+            };
+
+            // Calculate Dynamic Groups for View Filter
+            const getAvailableGroups = () => {
+                // Get unique groups from added products
+                const productGroups = products.map(p => p.group).filter(Boolean);
+                // Return 'ทั้งหมด' + unique groups
+                return ['ทั้งหมด', ...new Set(productGroups)];
+            };
+
+            const availableGroups = getAvailableGroups();
+
+            // Filter Products for View Mode
+            const filteredProducts = products.filter(p => {
+                const matchesSearch = 
+                    p.barcode.includes(searchTerm) || 
+                    p.name.toLowerCase().includes(searchTerm.toLowerCase());
+                const matchesGroup = searchGroup === 'ทั้งหมด' || p.group === searchGroup;
+                return matchesSearch && matchesGroup;
+            });
+
+            return (
+                <div className="min-h-screen pb-20 relative">
+                    {/* Notifications */}
+                    {notification.message && (
+                        <Notification 
+                            message={notification.message} 
+                            type={notification.type} 
+                            onClose={() => setNotification({ message: '', type: '' })} 
+                        />
+                    )}
+
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-lg sticky top-0 z-10 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-xl font-bold flex items-center gap-2">
+                                <IconBarcode /> Sabuy Stock
+                            </h1>
+                            {isSyncing && <span className="text-xs bg-white/20 px-2 py-1 rounded animate-pulse">☁️ Syncing...</span>}
+                        </div>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => setCurrentScreen('view')}
+                                className={`p-2 rounded-full ${currentScreen === 'view' ? 'bg-white text-blue-600' : 'bg-white/20 hover:bg-white/30'}`}
+                            >
+                                <IconList />
+                            </button>
+                            <button 
+                                onClick={() => setCurrentScreen('home')}
+                                className={`p-2 rounded-full ${currentScreen === 'home' ? 'bg-white text-blue-600' : 'bg-white/20 hover:bg-white/30'}`}
+                            >
+                                <IconPlus />
+                            </button>
+                            <button onClick={() => setShowSettings(true)} className="p-2 bg-white/20 rounded-full hover:bg-white/30">
+                                <IconSettings />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="max-w-md mx-auto p-4">
+                        
+                        {/* SCREEN: HOME (ADD/EDIT) */}
+                        {currentScreen === 'home' && (
+                            <div className="bg-white rounded-xl shadow-md p-5 mb-6 border border-gray-100">
+                                <h2 className="text-lg font-semibold mb-4 text-gray-700 border-b pb-2 flex justify-between items-center">
+                                    {editId ? '✏️ แก้ไขรายการ' : '➕ เพิ่มสินค้าใหม่'}
+                                    {isAiLoading && <span className="text-xs text-purple-600 animate-pulse flex items-center gap-1">✨ AI กำลังวิเคราะห์...</span>}
+                                </h2>
+                                
+                                <form onSubmit={handleSubmit} className="space-y-4">
+                                    {/* Barcode */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">บาร์โค้ด <span className="text-red-500">*</span></label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                name="barcode"
+                                                value={formData.barcode}
+                                                onChange={handleChange}
+                                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-lg font-mono"
+                                                placeholder="สแกน..."
+                                                autoFocus
+                                            />
+                                            <button 
+                                                type="button"
+                                                onClick={() => setIsCameraOpen(true)}
+                                                className="bg-gray-800 text-white p-3 rounded-lg hover:bg-gray-700 w-14 flex justify-center items-center"
+                                            >
+                                                <IconCamera />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* AI Buttons */}
+                                    <div className="flex gap-2">
+                                        <input type="file" ref={fileInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                                        <button 
+                                            type="button"
+                                            onClick={() => fileInputRef.current.click()}
+                                            className="w-full py-2 bg-purple-100 text-purple-700 rounded-lg border border-purple-300 flex justify-center items-center gap-2 hover:bg-purple-200"
+                                            disabled={isAiLoading}
+                                        >
+                                            <IconCamera /> AI Scan (รูปภาพ)
+                                        </button>
+                                    </div>
+
+                                    {/* Name */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1 flex justify-between">
+                                            ชื่อสินค้า <span className="text-red-500 mr-auto ml-1">*</span>
+                                            <button type="button" onClick={() => callGemini(null)} disabled={isAiLoading} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full flex gap-1 hover:bg-purple-200">
+                                                <IconSparkles /> AI คิดราคา
+                                            </button>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={formData.name}
+                                            onChange={handleChange}
+                                            className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${isAiLoading ? 'ai-glow' : ''}`}
+                                            placeholder="ชื่อสินค้า..."
+                                        />
+                                    </div>
+
+                                    {/* Group (Smart Memory) */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">กลุ่มสินค้า</label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                name="group"
+                                                value={formData.group}
+                                                onChange={handleChange}
+                                                list="group-list"
+                                                className="w-full p-3 border border-gray-300 rounded-lg outline-none"
+                                                placeholder="เลือกหรือพิมพ์ใหม่..."
+                                            />
+                                            <datalist id="group-list">
+                                                {savedGroups.map((g, i) => <option key={i} value={g} />)}
+                                            </datalist>
+                                        </div>
+                                    </div>
+
+                                    {/* Price & Unit */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">ราคาขาย</label>
+                                            <input type="number" name="price" value={formData.price} onChange={handleChange} className={`w-full p-3 border border-gray-300 rounded-lg outline-none ${isAiLoading ? 'ai-glow' : ''}`} placeholder="0.00" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">หน่วยนับ</label>
+                                            <input type="text" name="unit" value={formData.unit} onChange={handleChange} list="unit-list" className="w-full p-3 border border-gray-300 rounded-lg outline-none" placeholder="เลือก..." />
+                                            <datalist id="unit-list">
+                                                {savedUnits.map((u, i) => <option key={i} value={u} />)}
+                                            </datalist>
+                                        </div>
+                                    </div>
+
+                                    {/* Stock */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">จำนวนสต็อก</label>
+                                        <div className="flex items-center gap-4 bg-gray-100 p-2 rounded-lg justify-center">
+                                            <button type="button" onClick={() => handleStockChange(-1)} className="p-2 bg-white rounded shadow text-red-500 font-bold"><IconMinus /></button>
+                                            <span className="text-2xl font-bold w-16 text-center">{formData.stock}</span>
+                                            <button type="button" onClick={() => handleStockChange(1)} className="p-2 bg-white rounded shadow text-green-500 font-bold"><IconPlus /></button>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" className={`w-full py-4 rounded-lg font-bold text-lg shadow-md flex justify-center items-center gap-2 ${editId ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                                        <IconSave /> {editId ? 'บันทึกแก้ไข' : 'บันทึกข้อมูล'}
+                                    </button>
+                                </form>
+
+                                {/* --- RECENTLY ADDED LIST --- */}
+                                <div className="mt-8 border-t pt-4">
+                                    <h3 className="text-md font-semibold text-gray-600 mb-3 flex items-center gap-2">
+                                        <IconList /> รายการล่าสุด (10)
+                                    </h3>
+                                    
+                                    {/* Table Header */}
+                                    <div className="flex justify-between text-xs text-gray-500 font-bold px-3 pb-1">
+                                        <div className="flex-1">สินค้า/ราคา</div>
+                                        <div className="w-20 text-right">สต็อก</div>
+                                        <div className="w-16 text-center">จัดการ</div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        {products.length === 0 ? (
+                                            <p className="text-sm text-gray-400 text-center py-4">ยังไม่มีข้อมูล</p>
+                                        ) : (
+                                            products.slice(0, 10).map((p) => (
+                                                <div key={p.id} className="bg-gray-50 p-3 rounded-lg border border-gray-200 flex justify-between items-center text-sm hover:bg-gray-100 transition-colors">
+                                                    <div className="flex-1 min-w-0 pr-2">
+                                                        <div className="font-bold text-gray-800 line-clamp-1">{p.name}</div>
+                                                        <div className="text-gray-500 text-xs mt-0.5 flex gap-2 items-center">
+                                                            <span className="bg-white px-1.5 py-0.5 rounded border font-mono text-[10px]">{p.barcode}</span>
+                                                            <span className="text-blue-600 font-medium">{p.price} บ.</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="text-right w-12">
+                                                            <div className="font-bold text-gray-700">{p.stock}</div>
+                                                            <div className="text-[10px] text-gray-400">{p.unit}</div>
+                                                        </div>
+                                                        <div className="flex gap-1">
+                                                            <button 
+                                                                type="button" 
+                                                                onClick={(e) => { 
+                                                                    e.stopPropagation(); 
+                                                                    handleEdit(p); 
+                                                                }} 
+                                                                className="p-1.5 text-blue-500 hover:bg-blue-100 rounded transition-colors"
+                                                            >
+                                                                <IconEdit />
+                                                            </button>
+                                                            <button 
+                                                                type="button" 
+                                                                onClick={(e) => handleDelete(e, p.id)} 
+                                                                className="p-1.5 text-red-500 hover:bg-red-100 rounded transition-colors"
+                                                            >
+                                                                <IconTrash2 />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                    {products.length > 10 && (
+                                        <div className="text-center mt-3">
+                                            <button 
+                                                onClick={() => setCurrentScreen('view')}
+                                                className="text-sm text-blue-600 hover:underline"
+                                            >
+                                                ดูทั้งหมด ({products.length} รายการ)
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                                {/* --- END RECENTLY ADDED --- */}
+                            </div>
+                        )}
+
+                        {/* SCREEN: VIEW LIST */}
+                        {currentScreen === 'view' && (
+                            <div className="space-y-4">
+                                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                    <h2 className="text-lg font-bold mb-3 flex items-center gap-2 text-gray-700">
+                                        <IconList /> รายการสินค้า ({filteredProducts.length})
+                                    </h2>
+                                    
+                                    {/* Search Bar */}
+                                    <div className="flex gap-2 mb-3">
+                                        <div className="relative flex-1">
+                                            <span className="absolute left-3 top-3 text-gray-400"><IconSearch /></span>
+                                            <input 
+                                                type="text" 
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="w-full pl-10 p-2 border rounded-lg bg-gray-50 outline-none"
+                                                placeholder="ค้นหาชื่อ / บาร์โค้ด..." 
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Group Filter (Dynamic) */}
+                                    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                                        {availableGroups.map((g, i) => (
+                                            <button 
+                                                key={i}
+                                                onClick={() => setSearchGroup(g)}
+                                                className={`px-4 py-1 rounded-full text-sm whitespace-nowrap transition-colors ${searchGroup === g ? 'bg-blue-600 text-white shadow' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+                                            >
+                                                {g}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {filteredProducts.length === 0 ? (
+                                        <div className="text-center text-gray-400 py-10">ไม่พบรายการสินค้า</div>
+                                    ) : (
+                                        filteredProducts.map((p) => (
+                                            <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                                                <div className="flex-1">
+                                                    <div className="font-bold text-gray-800">{p.name}</div>
+                                                    <div className="text-sm text-gray-500 flex flex-wrap items-center gap-2 mt-1">
+                                                        <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono">{p.barcode}</span>
+                                                        <span className="text-blue-600 font-medium">{p.price} บ.</span>
+                                                        <span className="bg-purple-50 text-purple-600 px-2 py-0.5 rounded text-xs">{p.group}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3 ml-2 border-l pl-3">
+                                                    <div className="text-right">
+                                                        <div className="font-bold text-lg">{p.stock}</div>
+                                                        <div className="text-xs text-gray-400">{p.unit}</div>
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <button 
+                                                            onClick={(e) => { 
+                                                                e.stopPropagation(); 
+                                                                handleEdit(p); 
+                                                            }} 
+                                                            className="text-gray-400 hover:text-blue-500"
+                                                        >
+                                                            <IconEdit />
+                                                        </button>
+                                                        <button 
+                                                            onClick={(e) => handleDelete(e, p.id)} 
+                                                            className="text-gray-400 hover:text-red-500"
+                                                        >
+                                                            <IconTrash2 />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                <div className="sticky bottom-4">
+                                    <button 
+                                        onClick={exportToExcel}
+                                        className="w-full bg-green-600 text-white py-3 rounded-xl shadow-lg font-bold flex justify-center items-center gap-2 hover:bg-green-700"
+                                    >
+                                        <IconFileSpreadsheet /> Export Excel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Camera Modal */}
+                    {isCameraOpen && (
+                        <Scanner onScan={handleScanSuccess} onClose={() => setIsCameraOpen(false)} />
+                    )}
+
+                    {/* Settings Modal */}
+                    {showSettings && (
+                        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                            <div className="bg-white w-full max-w-sm rounded-xl p-6 shadow-2xl">
+                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                    <IconSettings /> ตั้งค่าระบบ
+                                </h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm text-gray-700 mb-1">Gemini API Key (สำหรับ AI)</label>
+                                        <input 
+                                            type="password" 
+                                            value={apiKey} 
+                                            onChange={(e) => setApiKey(e.target.value)}
+                                            className="w-full p-2 border rounded-lg"
+                                            placeholder="Paste API Key..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm text-gray-700 mb-1">Google Apps Script URL (สำหรับ Sheet)</label>
+                                        <input 
+                                            type="text" 
+                                            value={sheetUrl} 
+                                            onChange={(e) => setSheetUrl(e.target.value)}
+                                            className="w-full p-2 border rounded-lg"
+                                            placeholder="https://script.google.com/..."
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">ต้อง Deploy เป็น Web App (Anyone can access) ก่อน</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 justify-end mt-6">
+                                    <button onClick={() => setShowSettings(false)} className="px-4 py-2 text-gray-600">ปิด</button>
+                                    <button onClick={saveSettings} className="px-4 py-2 bg-blue-600 text-white rounded-lg">บันทึก</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
