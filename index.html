@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AddProduct-Stock-Professional</title>
+    <title>SabuySoft Stock Pro (Clear Data & Security)</title>
     
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -88,12 +88,12 @@
             const fileInputRef = useRef(null);
 
             useEffect(() => {
-                const saved = localStorage.getItem('sabuy__data_pro');
+                const saved = localStorage.getItem('sabuy_stock_data_pro');
                 if (saved) setProducts(JSON.parse(saved));
             }, []);
 
             useEffect(() => {
-                localStorage.setItem('sabuy__data_pro', JSON.stringify(products));
+                localStorage.setItem('sabuy_stock_data_pro', JSON.stringify(products));
             }, [products]);
 
             // --- Smart ID: Max + 1 ---
@@ -206,7 +206,7 @@
 
                 if (confirm("ยืนยันการลบข้อมูลทั้งหมดหรือไม่? (กู้คืนไม่ได้)")) {
                     setProducts([]);
-                    localStorage.setItem('sabuy__data_pro', JSON.stringify([]));
+                    localStorage.setItem('sabuy_stock_data_pro', JSON.stringify([]));
                     saveToCloud([]); // Sync empty state to cloud to clear it
                     
                     setShowClearModal(false);
@@ -217,15 +217,15 @@
 
             const handleChange = (e) => {
                 const { name, value } = e.target;
-                if ((name === 'price' || name === '') && parseFloat(value) < 0) return;
+                if ((name === 'price' || name === 'stock') && parseFloat(value) < 0) return;
                 setFormData(prev => ({ ...prev, [name]: value }));
             };
 
-            const updateQuick = (id, delta) => {
+            const updateQuickStock = (id, delta) => {
                 // In Safe View, this function might be unused if buttons are removed, 
                 // but keeping logic in case of re-enabling or other uses.
                 const updatedProducts = products.map(p => 
-                    p.id === id ? { ...p, : Math.max(0, parseFloat(p.) + delta), updateTime: new Date().toLocaleString('th-TH') } : p
+                    p.id === id ? { ...p, stock: Math.max(0, parseFloat(p.stock) + delta), updateTime: new Date().toLocaleString('th-TH') } : p
                 );
                 setProducts(updatedProducts);
                 showNotify("อัปเดตสต็อกเรียบร้อย");
@@ -321,7 +321,7 @@
                     id: newId,
                     ...formData,
                     price: parseFloat(formData.price) || 0,
-                    : parseFloat(formData.) || 0,
+                    stock: parseFloat(formData.stock) || 0,
                     createTime: editId ? (products.find(p=>p.id===editId)?.createTime || timestamp) : timestamp,
                     updateTime: timestamp
                 };
@@ -335,7 +335,7 @@
                 }
 
                 setProducts(updatedProducts);
-                setFormData({ barcode: '', name: '', price: '', : 1, unit: 'ชิ้น', group: 'ทั่วไป', brand: '' });
+                setFormData({ barcode: '', name: '', price: '', stock: 1, unit: 'ชิ้น', group: 'ทั่วไป', brand: '' });
                 setImagePreview(null);
                 showNotify(`บันทึกสำเร็จ (ID: ${newId})`);
                 saveToCloud(updatedProducts); 
@@ -380,7 +380,7 @@
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(products));
                 const downloadAnchorNode = document.createElement('a');
                 downloadAnchorNode.setAttribute("href", dataStr);
-                downloadAnchorNode.setAttribute("download", `sabuy__backup_${new Date().toISOString().slice(0,10)}.json`);
+                downloadAnchorNode.setAttribute("download", `sabuy_stock_backup_${new Date().toISOString().slice(0,10)}.json`);
                 document.body.appendChild(downloadAnchorNode);
                 downloadAnchorNode.click();
                 downloadAnchorNode.remove();
@@ -421,7 +421,7 @@
                                 barcode: String(row['Barcode หลัก'] || row['บาร์โค้ด'] || ''),
                                 name: String(row['ชื่อสินค้า'] || ''),
                                 price: parseFloat(row['ราคาขาย 1'] || row['ราคา'] || 0),
-                                : parseFloat(row[''] || row['คงเหลือ'] || 0),
+                                stock: parseFloat(row['Stock'] || row['คงเหลือ'] || 0),
                                 unit: String(row['หน่วยเล็กที่สุด'] || row['หน่วย'] || 'ชิ้น'),
                                 group: String(row['กลุ่มสินค้า'] || row['กลุ่ม'] || 'ทั่วไป'),
                                 brand: String(row['Brand (ยี่ห้อสินค้า)'] || row['Brand'] || ''),
@@ -459,7 +459,7 @@
                     <header className="bg-emerald-700 text-white p-4 sticky top-0 z-40 flex justify-between items-center rounded-b-2xl shadow-lg">
                         <div className="flex items-center gap-2">
                             <IconPackage />
-                            <h1 className="text-xl font-bold tracking-tight">Product </h1>
+                            <h1 className="text-xl font-bold tracking-tight">AddProduct-Stock-Professional</h1>
                         </div>
                         <div className="flex gap-2 items-center">
                             {/* Cloud Status Icon */}
