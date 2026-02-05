@@ -1,0 +1,84 @@
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    if (data.action === 'save') return saveData(data.data);
+    return ContentService.createTextOutput("Unknown action");
+  } catch (err) {
+    return ContentService.createTextOutput("Error: " + err.toString());
+  }
+}
+
+function doGet(e) {
+  var action = e.parameter.action;
+  if (action === 'ping') return ContentService.createTextOutput("Pong");
+  if (action === 'get') return getData();
+}
+
+const HEADERS = [
+  "ID", "รหัสสินค้า", "Barcode หลัก", "ชื่อสินค้า", "Stock", 
+  "ราคาขาย 1", "ราคาขาย 2", "ราคาขาย 3", "ราคาขาย 4", "ราคาขาย 5", 
+  "ราคาขายต่ำสุด", "ต้นทุนมาตรฐาน", "หน่วยเล็กที่สุด", "ชื่อสินค้า 2", "จำนวนที่ได้ราคาช่อง 2", 
+  "จำนวนที่ได้ราคาช่อง 3", "จำนวนที่ได้ราคาช่อง 4", "จำนวนที่ได้ราคาช่อง 5", "Extra Volume", "จำนวนสินค้าเป็นทศนิยมได้", 
+  "ส่วนลดสมาชิก 1(%)", "ส่วนลดสมาชิก 2(%)", "ส่วนลดสมาชิก 3(%)", "กว้าง", "ยาว", 
+  "สูง", "น้ำหนัก", "น้ำหนักรวมบรรจุภัณฑ์", "จำนวนที่เตือนใกล้หมด", "จำนวนที่ต้องการให้มี", 
+  "ประเภทสินค้า", "กลุ่มสินค้า", "Brand (ยี่ห้อสินค้า)", "Supplier หลัก", "VAT", 
+  "สะสมแต้มได้", "Point (แต้มที่ได้)", "ระยะเวลารับประกัน", "Hot Product", "สินค้าสำเร็จรูป", 
+  "Location (ที่เก็บสินค้า)", "Printer ID", "Comment (หมายเหตุ)", "แสดงบน Website", "แสดงหน่วยเล็ก Website", 
+  "แสดงใหญ่บน Website", "คำอธิบายบน Website", "Status", "Create Officer", "Create Time", 
+  "Update Officer", "Update Time"
+];
+
+function saveData(products) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) return ContentService.createTextOutput("Error: No Active Sheet");
+  var sheet = ss.getSheets()[0];
+  sheet.clear();
+  
+  if (!products || products.length === 0) return ContentService.createTextOutput("No Data");
+
+  var rows = [HEADERS];
+  products.forEach((p) => {
+    // แก้ไข: ใช้ ID ที่ส่งมาจาก App โดยตรง (ไม่บังคับรัน index ใหม่)
+    // เพื่อให้เลข ID ที่ App คำนวณมา (เช่น 11) ถูกบันทึกลงไปจริงๆ
+    var idToSave = p.id; 
+    
+    var row = [
+      idToSave, "", p.barcode, p.name, p.stock, p.price, "0.000", "0.000", "0.000", "0.000", "0.000", "0.000", 
+      p.unit, "", "0.000", "0.000", "0.000", "0.000", "", "False", "0.00", "0.00", "0.00", "0.000", "0.000", "0.000", 
+      "0.000", "0.000", "", "", "", p.group, p.brand, "", "True", "True", "0.000", "", "False", "False", "", "", "", 
+      "True", "True", "True", "", "True", "Admin", p.createTime, "Admin", p.updateTime
+    ];
+    rows.push(row);
+  });
+  
+  sheet.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
+  return ContentService.createTextOutput("Saved");
+}
+
+function getData() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheets()[0];
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return ContentService.createTextOutput("[]").setMimeType(ContentService.MimeType.JSON);
+
+  var data = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+  var products = [];
+  
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    if (!row[2] && !row[3]) continue; 
+
+    // อ่านค่า ID เดิมจาก Sheet อย่างระมัดระวัง
+    var existingId = parseInt(row[0]);
+    var finalId = !isNaN(existingId) ? existingId : (new Date().getTime() + i);
+
+    products.push({
+      id: finalId,
+      barcode: String(row[2]), name: String(row[3]), stock: parseInt(row[4] || 0), price: parseFloat(row[5] || 0),
+      unit: String(row[12] || 'ชิ้น'), group: String(row[31] || 'ทั่วไป'), brand: String(row[32] || ''),
+      createTime: row[49] ? String(row[49]) : new Date().toLocaleString('th-TH'),
+      updateTime: row[51] ? String(row[51]) : new Date().toLocaleString('th-TH')
+    });
+  }
+  return ContentService.createTextOutput(JSON.stringify(products)).setMimeType(ContentService.MimeType.JSON);
+}
