@@ -70,7 +70,7 @@
         const IconShieldAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
 
         // ==========================================
-        // 📷 Barcode Scanner Component (NEW FIX)
+        // 📷 Barcode Scanner Component (OPTIMIZED)
         // ==========================================
         const BarcodeScanner = ({ onScan, onClose }) => {
             useEffect(() => {
@@ -78,14 +78,20 @@
                 let isUnmounted = false;
 
                 const startScanner = async () => {
-                    // รอให้ Component โหลดเสร็จก่อน
+                    // รอให้หน้าต่างเปิดเสร็จสมบูรณ์
                     await new Promise(r => setTimeout(r, 100));
                     
                     const container = document.getElementById("reader");
                     if (!container) return;
 
                     html5QrCode = new Html5Qrcode("reader");
-                    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+                    
+                    // --- ตั้งค่าให้สแกนได้เร็วและแม่นยำขึ้น ---
+                    const config = { 
+                        fps: 30, // เพิ่มความเร็วเป็น 30 เฟรมต่อวินาที (จับภาพไวขึ้น)
+                        qrbox: { width: 300, height: 150 }, // กรอบแนวนอน เหมาะกับ Barcode แท่งตามสินค้า
+                        disableFlip: true // ปิดระบบการสแกนกลับหัว เพื่อลดภาระเครื่อง ทำให้โฟกัสไวขึ้นมาก
+                    };
                     
                     const onScanSuccess = (decodedText) => {
                         if (isUnmounted) return;
@@ -93,19 +99,17 @@
                         html5QrCode.stop().then(() => {
                             onScan(decodedText);
                         }).catch(() => {
-                            onScan(decodedText); // เผื่อ error ก็ยังส่งค่าไป
+                            onScan(decodedText);
                         });
                     };
 
                     try {
-                        // ลองเปิดกล้องหลังก่อน
                         await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
                     } catch (err) {
                         if (isUnmounted) return;
-                        console.warn("ไม่พบกล้องหลัง หรือติดปัญหาสิทธิ์ กำลังลองกล้องอื่น...", err);
+                        console.warn("ไม่พบกล้องหลัง กำลังลองกล้องอื่น...", err);
                         
                         try {
-                            // ถ้าไม่เจอกล้องหลัง ให้ลองหากล้องทั้งหมดที่มีในเครื่อง
                             const devices = await Html5Qrcode.getCameras();
                             if (devices && devices.length > 0) {
                                 await html5QrCode.start(devices[0].id, config, onScanSuccess, () => {});
@@ -122,7 +126,6 @@
 
                 startScanner();
 
-                // Cleanup ตอนปิดหน้าต่าง
                 return () => {
                     isUnmounted = true;
                     if (html5QrCode && html5QrCode.isScanning) {
@@ -143,7 +146,7 @@
                         
                         <div className="p-6 text-center space-y-2 bg-white">
                             <p className="text-emerald-600 font-black text-lg">กำลังสแกนบาร์โค้ด</p>
-                            <p className="text-xs text-gray-500">เล็งกล้องให้บาร์โค้ดอยู่ตรงกลางจอภาพ</p>
+                            <p className="text-xs text-gray-500 font-bold">เล็งบาร์โค้ดให้อยู่ในกรอบแนวนอน</p>
                         </div>
                     </div>
                 </div>
@@ -171,7 +174,7 @@
                 if (CUSTOMER_CONFIG.locked && CUSTOMER_CONFIG.sheetUrl) return CUSTOMER_CONFIG.sheetUrl;
                 return localStorage.getItem('google_sheet_url') || CUSTOMER_CONFIG.sheetUrl || '';
             });
-
+            
             const [isAiLoading, setIsAiLoading] = useState(false);
             const [isSyncing, setIsSyncing] = useState(false);
             const [saveStatus, setSaveStatus] = useState(''); 
@@ -819,14 +822,6 @@
                                 </div>
                             </div>
                         </div>
-                    )}
-
-                    {/* Scanner Modal (React Component Approach) */}
-                    {isCameraOpen && (
-                        <BarcodeScanner 
-                            onScan={handleScanSuccess} 
-                            onClose={() => setIsCameraOpen(false)} 
-                        />
                     )}
 
                     {/* Settings Modal */}
