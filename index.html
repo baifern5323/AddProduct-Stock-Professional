@@ -70,22 +70,23 @@
         const IconShieldAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
 
         // ==========================================
-        // 📷 Barcode Scanner Component
+        // 📷 Barcode Scanner Component (FIXED & FALLBACK ADDED)
         // ==========================================
         const BarcodeScanner = ({ onScan, onClose }) => {
+            const manualFileRef = useRef(null);
+            
             useEffect(() => {
                 let html5QrCode;
                 let isUnmounted = false;
 
                 const startScanner = async () => {
-                    await new Promise(r => setTimeout(r, 100));
+                    await new Promise(r => setTimeout(r, 200));
                     
                     const container = document.getElementById("reader");
-                    if (!container) return;
+                    if (!container || isUnmounted) return;
 
                     html5QrCode = new Html5Qrcode("reader");
                     
-                    // ปรับแต่งให้กล้องมีเวลาโฟกัส และตีกรอบให้เป็นแนวนอน
                     const config = { 
                         fps: 10, 
                         qrbox: { width: 250, height: 100 }, 
@@ -94,11 +95,9 @@
                     
                     const onScanSuccess = (decodedText) => {
                         if (isUnmounted) return;
-                        html5QrCode.stop().then(() => {
-                            onScan(decodedText);
-                        }).catch(() => {
-                            onScan(decodedText);
-                        });
+                        html5QrCode.stop()
+                            .then(() => onScan(decodedText))
+                            .catch(() => onScan(decodedText));
                     };
 
                     try {
@@ -112,12 +111,10 @@
                             if (devices && devices.length > 0) {
                                 await html5QrCode.start(devices[0].id, config, onScanSuccess, () => {});
                             } else {
-                                alert("อุปกรณ์ของคุณไม่มีกล้องครับ");
-                                onClose();
+                                // ไม่เด้ง Alert กวนใจ แต่ให้ผู้ใช้กดปุ่มถ่ายรูปแทน
                             }
                         } catch (fallbackErr) {
-                            alert("ไม่สามารถเข้าถึงกล้องได้\n\n1. โปรดอนุญาตการใช้งานกล้องให้เบราว์เซอร์\n2. หากเปิดไฟล์จากในเครื่อง (file://) กล้องจะไม่ทำงาน ต้องเปิดผ่าน Web URL เท่านั้นครับ");
-                            onClose();
+                            console.error("Camera access failed", fallbackErr);
                         }
                     }
                 };
@@ -132,23 +129,56 @@
                 };
             }, [onScan, onClose]);
 
+            // ฟังก์ชันสำหรับแกะบาร์โค้ดจากรูปถ่าย (Native Camera Fallback)
+            const handleManualFileUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const html5QrCode = new Html5Qrcode("reader");
+                    const decodedText = await html5QrCode.scanFile(file, true);
+                    onScan(decodedText);
+                } catch (err) {
+                    alert("⚠️ ค้นหาบาร์โค้ดในรูปไม่เจอครับ กรุณาถ่ายให้เห็นบาร์โค้ดชัดๆ อีกครั้ง");
+                }
+                e.target.value = ""; // รีเซ็ต input
+            };
+
             return (
                 <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden relative shadow-2xl border-4 border-emerald-500">
+                    <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden relative shadow-2xl border-4 border-emerald-500 flex flex-col">
                         <button onClick={onClose} className="absolute top-4 right-4 z-[110] bg-black/50 hover:bg-black/70 p-2 rounded-full text-white transition"><IconClose /></button>
                         
                         {/* Camera Container */}
-                        <div id="reader" className="w-full min-h-[300px] bg-black flex items-center justify-center text-white text-sm">
-                            กำลังเชื่อมต่อกล้อง...
+                        <div id="reader" className="w-full h-[300px] bg-black flex items-center justify-center text-white text-sm">
+                            กำลังพยายามเชื่อมต่อกล้อง...
                         </div>
                         
-                        <div className="p-6 text-center space-y-2 bg-white">
-                            <p className="text-emerald-600 font-black text-lg">กำลังสแกนบาร์โค้ด</p>
-                            <p className="text-xs text-gray-500 font-bold">เล็งบาร์โค้ดให้อยู่ในกรอบแนวนอน</p>
+                        <div className="p-5 text-center space-y-3 bg-white">
+                            <div>
+                                <p className="text-emerald-600 font-black text-lg">สแกนบาร์โค้ด</p>
+                                <p className="text-xs text-gray-500 font-bold">เล็งบาร์โค้ดให้อยู่ในกรอบแนวนอน</p>
+                            </div>
                             
-                            <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-xl">
-                                <p className="text-xs text-red-600 font-bold mb-1">💡 สแกนยาก? กล้องไม่โฟกัส?</p>
-                                <p className="text-[10px] text-gray-600">กดยกเลิก แล้วใช้ปุ่ม <b>"AI อ่านเลขบาร์โค้ด"</b> ด้านนอกเพื่อถ่ายรูปให้ AI แกะตัวเลขให้แทนได้เลยครับ!</p>
+                            {/* ปุ่มทีเด็ด: ถ่ายรูปเพื่อแกะบาร์โค้ด (แก้ปัญหากล้องค้าง/โฟกัสไม่ติด 100%) */}
+                            <div className="pt-3 border-t border-gray-100">
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    capture="environment" 
+                                    className="hidden" 
+                                    ref={manualFileRef} 
+                                    onChange={handleManualFileUpload} 
+                                />
+                                <button 
+                                    onClick={() => manualFileRef.current.click()} 
+                                    className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-100 transition flex justify-center items-center gap-2 border border-indigo-200"
+                                >
+                                    <IconCamera /> ถ่ายรูปสแกน (Native)
+                                </button>
+                                <p className="text-[10px] text-red-500 mt-2 font-bold">
+                                    💡 หากกล้องจอดำ หรือ โฟกัสไม่ชัด ให้กดปุ่มด้านบนเพื่อใช้แอปกล้องมือถือถ่ายภาพแทนครับ
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -357,7 +387,7 @@
                 const reader = new FileReader();
                 reader.onloadend = () => {
                     setImagePreview(reader.result);
-                    callGemini(reader.result); // Call AI directly after upload
+                    callGemini(reader.result); 
                 };
                 reader.readAsDataURL(file);
             };
@@ -370,7 +400,6 @@
                 }
                 setIsAiLoading(true);
                 
-                // --- แก้ไข Prompt ให้ AI ดึงเลขบาร์โค้ดออกมาด้วย ---
                 const promptText = imageData ? 
                     `ดึงข้อมูลจากรูป ตอบเป็น JSON เท่านั้น: {"barcode": "ตัวเลขบาร์โค้ด (ถ้ามีในรูป ปล่อยว่างถ้าไม่มี)", "name": "ชื่อสินค้าภาษาไทย", "group": "กลุ่มสินค้า", "brand": "ยี่ห้อ", "price": ราคาประเมินเป็นตัวเลข, "unit": "หน่วยนับ"}` : 
                     `แนะนำข้อมูลสำหรับสินค้าชื่อ "${formData.name}" ตอบ JSON: {"barcode": "", "group": "...", "brand": "...", "price": 0, "unit": "..."}`;
@@ -387,7 +416,6 @@
                     
                     setFormData(prev => {
                         const newData = { ...prev, ...result };
-                        // ถ้า AI หาบาร์โค้ดไม่เจอ ให้คงค่าเดิมไว้ (ป้องกันการลบค่าเดิมที่พิมพ์ไว้)
                         if (!result.barcode) newData.barcode = prev.barcode;
                         return newData;
                     });
@@ -627,7 +655,6 @@
                                         </div>
                                     )}
 
-                                    {/* ปรับปรุงปุ่ม AI ให้อ่านเลขบาร์โค้ดได้ */}
                                     <div className="flex gap-2">
                                         <input type="file" ref={fileInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                                         <button type="button" onClick={() => fileInputRef.current.click()} className="flex-1 py-3 bg-emerald-50 text-emerald-700 border-2 border-emerald-200 rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-emerald-100 transition shadow-sm"><IconSparkles /> AI สแกนรูป / อ่านเลขบาร์โค้ด</button>
