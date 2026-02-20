@@ -85,10 +85,11 @@
 
                     html5QrCode = new Html5Qrcode("reader");
                     
+                    // ปรับแต่งให้กล้องมีเวลาโฟกัส และตีกรอบให้เป็นแนวนอน
                     const config = { 
-                        fps: 30, 
-                        qrbox: { width: 300, height: 150 }, 
-                        disableFlip: true 
+                        fps: 10, 
+                        qrbox: { width: 250, height: 100 }, 
+                        disableFlip: false 
                     };
                     
                     const onScanSuccess = (decodedText) => {
@@ -144,6 +145,11 @@
                         <div className="p-6 text-center space-y-2 bg-white">
                             <p className="text-emerald-600 font-black text-lg">กำลังสแกนบาร์โค้ด</p>
                             <p className="text-xs text-gray-500 font-bold">เล็งบาร์โค้ดให้อยู่ในกรอบแนวนอน</p>
+                            
+                            <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-xl">
+                                <p className="text-xs text-red-600 font-bold mb-1">💡 สแกนยาก? กล้องไม่โฟกัส?</p>
+                                <p className="text-[10px] text-gray-600">กดยกเลิก แล้วใช้ปุ่ม <b>"AI อ่านเลขบาร์โค้ด"</b> ด้านนอกเพื่อถ่ายรูปให้ AI แกะตัวเลขให้แทนได้เลยครับ!</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -351,7 +357,7 @@
                 const reader = new FileReader();
                 reader.onloadend = () => {
                     setImagePreview(reader.result);
-                    callGemini(reader.result);
+                    callGemini(reader.result); // Call AI directly after upload
                 };
                 reader.readAsDataURL(file);
             };
@@ -363,9 +369,11 @@
                     return;
                 }
                 setIsAiLoading(true);
+                
+                // --- แก้ไข Prompt ให้ AI ดึงเลขบาร์โค้ดออกมาด้วย ---
                 const promptText = imageData ? 
-                    `วิเคราะห์รูปสินค้า ตอบ JSON: {"name": "ชื่อไทย", "group": "กลุ่มสินค้า", "brand": "ยี่ห้อ", "price": ตัวเลขราคา, "unit": "หน่วย"}` : 
-                    `แนะนำข้อมูลสำหรับสินค้าชื่อ "${formData.name}" ตอบ JSON: {"group": "...", "brand": "...", "price": 0, "unit": "..."}`;
+                    `ดึงข้อมูลจากรูป ตอบเป็น JSON เท่านั้น: {"barcode": "ตัวเลขบาร์โค้ด (ถ้ามีในรูป ปล่อยว่างถ้าไม่มี)", "name": "ชื่อสินค้าภาษาไทย", "group": "กลุ่มสินค้า", "brand": "ยี่ห้อ", "price": ราคาประเมินเป็นตัวเลข, "unit": "หน่วยนับ"}` : 
+                    `แนะนำข้อมูลสำหรับสินค้าชื่อ "${formData.name}" ตอบ JSON: {"barcode": "", "group": "...", "brand": "...", "price": 0, "unit": "..."}`;
 
                 try {
                     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
@@ -376,8 +384,15 @@
                     const data = await response.json();
                     const aiText = data.candidates[0].content.parts[0].text;
                     const result = JSON.parse(aiText.match(/\{[\s\S]*\}/)[0]);
-                    setFormData(prev => ({ ...prev, ...result }));
-                    showNotify("AI วิเคราะห์ข้อมูลเรียบร้อย!");
+                    
+                    setFormData(prev => {
+                        const newData = { ...prev, ...result };
+                        // ถ้า AI หาบาร์โค้ดไม่เจอ ให้คงค่าเดิมไว้ (ป้องกันการลบค่าเดิมที่พิมพ์ไว้)
+                        if (!result.barcode) newData.barcode = prev.barcode;
+                        return newData;
+                    });
+                    
+                    showNotify("AI วิเคราะห์และอ่านข้อมูลเรียบร้อย!");
                 } catch (e) {
                     showNotify("AI Error: ลองตรวจสอบ API Key", "error");
                 } finally {
@@ -612,9 +627,10 @@
                                         </div>
                                     )}
 
+                                    {/* ปรับปรุงปุ่ม AI ให้อ่านเลขบาร์โค้ดได้ */}
                                     <div className="flex gap-2">
                                         <input type="file" ref={fileInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
-                                        <button type="button" onClick={() => fileInputRef.current.click()} className="flex-1 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 transition"><IconSparkles /> AI สแกนรูปภาพ</button>
+                                        <button type="button" onClick={() => fileInputRef.current.click()} className="flex-1 py-3 bg-emerald-50 text-emerald-700 border-2 border-emerald-200 rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-emerald-100 transition shadow-sm"><IconSparkles /> AI สแกนรูป / อ่านเลขบาร์โค้ด</button>
                                     </div>
 
                                     <div>
