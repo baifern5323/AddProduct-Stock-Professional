@@ -24,8 +24,9 @@
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         
-        /* Camera Overlay */
-        .scan-region-highlight { border-radius: 20px; border: 4px solid #22c55e; box-shadow: 0 0 0 100vmax rgba(0,0,0,0.5); }
+        /* Camera Overlay Styles */
+        #reader { width: 100%; border-radius: 1rem; overflow: hidden; }
+        #reader video { object-fit: cover; }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
@@ -67,7 +68,87 @@
         const IconTag = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>;
         const IconCheckCircle = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
         const IconShieldAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
-        const IconFolder = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>;
+
+        // ==========================================
+        // 📷 Barcode Scanner Component (NEW FIX)
+        // ==========================================
+        const BarcodeScanner = ({ onScan, onClose }) => {
+            useEffect(() => {
+                let html5QrCode;
+                let isUnmounted = false;
+
+                const startScanner = async () => {
+                    // รอให้ Component โหลดเสร็จก่อน
+                    await new Promise(r => setTimeout(r, 100));
+                    
+                    const container = document.getElementById("reader");
+                    if (!container) return;
+
+                    html5QrCode = new Html5Qrcode("reader");
+                    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+                    
+                    const onScanSuccess = (decodedText) => {
+                        if (isUnmounted) return;
+                        // หยุดกล้องทันทีที่สแกนเจอ
+                        html5QrCode.stop().then(() => {
+                            onScan(decodedText);
+                        }).catch(() => {
+                            onScan(decodedText); // เผื่อ error ก็ยังส่งค่าไป
+                        });
+                    };
+
+                    try {
+                        // ลองเปิดกล้องหลังก่อน
+                        await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
+                    } catch (err) {
+                        if (isUnmounted) return;
+                        console.warn("ไม่พบกล้องหลัง หรือติดปัญหาสิทธิ์ กำลังลองกล้องอื่น...", err);
+                        
+                        try {
+                            // ถ้าไม่เจอกล้องหลัง ให้ลองหากล้องทั้งหมดที่มีในเครื่อง
+                            const devices = await Html5Qrcode.getCameras();
+                            if (devices && devices.length > 0) {
+                                await html5QrCode.start(devices[0].id, config, onScanSuccess, () => {});
+                            } else {
+                                alert("อุปกรณ์ของคุณไม่มีกล้องครับ");
+                                onClose();
+                            }
+                        } catch (fallbackErr) {
+                            alert("ไม่สามารถเข้าถึงกล้องได้\n\n1. โปรดอนุญาตการใช้งานกล้องให้เบราว์เซอร์\n2. หากเปิดไฟล์จากในเครื่อง (file://) กล้องจะไม่ทำงาน ต้องเปิดผ่าน Web URL เท่านั้นครับ");
+                            onClose();
+                        }
+                    }
+                };
+
+                startScanner();
+
+                // Cleanup ตอนปิดหน้าต่าง
+                return () => {
+                    isUnmounted = true;
+                    if (html5QrCode && html5QrCode.isScanning) {
+                        html5QrCode.stop().catch(console.error);
+                    }
+                };
+            }, [onScan, onClose]);
+
+            return (
+                <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden relative shadow-2xl border-4 border-emerald-500">
+                        <button onClick={onClose} className="absolute top-4 right-4 z-[110] bg-black/50 hover:bg-black/70 p-2 rounded-full text-white transition"><IconClose /></button>
+                        
+                        {/* Camera Container */}
+                        <div id="reader" className="w-full min-h-[300px] bg-black flex items-center justify-center text-white text-sm">
+                            กำลังเชื่อมต่อกล้อง...
+                        </div>
+                        
+                        <div className="p-6 text-center space-y-2 bg-white">
+                            <p className="text-emerald-600 font-black text-lg">กำลังสแกนบาร์โค้ด</p>
+                            <p className="text-xs text-gray-500">เล็งกล้องให้บาร์โค้ดอยู่ตรงกลางจอภาพ</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
         function App() {
             const [currentScreen, setCurrentScreen] = useState('home');
@@ -90,7 +171,7 @@
                 if (CUSTOMER_CONFIG.locked && CUSTOMER_CONFIG.sheetUrl) return CUSTOMER_CONFIG.sheetUrl;
                 return localStorage.getItem('google_sheet_url') || CUSTOMER_CONFIG.sheetUrl || '';
             });
-            
+
             const [isAiLoading, setIsAiLoading] = useState(false);
             const [isSyncing, setIsSyncing] = useState(false);
             const [saveStatus, setSaveStatus] = useState(''); 
@@ -102,7 +183,6 @@
 
             const nameInputRef = useRef(null);
             const fileInputRef = useRef(null);
-            const scannerRef = useRef(null);
 
             useEffect(() => {
                 const saved = localStorage.getItem('sabuy_stock_data_pro');
@@ -112,62 +192,6 @@
             useEffect(() => {
                 localStorage.setItem('sabuy_stock_data_pro', JSON.stringify(products));
             }, [products]);
-
-            // --- Camera Logic Fix ---
-            useEffect(() => {
-                let html5QrCode;
-                
-                if (isCameraOpen) {
-                    // 1. Check Protocol for Safety
-                    if (window.location.protocol === 'file:') {
-                        alert("⚠️ กล้องไม่ทำงานบนไฟล์ในเครื่อง (file://)\n\nBrowser บังคับให้ใช้กล้องผ่าน https:// หรือ localhost เท่านั้นครับ\n\nแนะนำ: นำไฟล์ไปวางบน GitHub Pages หรือ Netlify ตามวิธีที่เคยแนะนำครับ");
-                        setIsCameraOpen(false);
-                        return;
-                    }
-
-                    const startCamera = async () => {
-                        await new Promise(r => setTimeout(r, 100)); // Wait for Modal render
-                        
-                        if (!document.getElementById("reader")) return;
-
-                        html5QrCode = new Html5Qrcode("reader");
-                        
-                        try {
-                            await html5QrCode.start(
-                                { facingMode: "environment" },
-                                { fps: 10, qrbox: { width: 250, height: 250 } },
-                                (decodedText) => {
-                                    // Stop scanning on success
-                                    html5QrCode.stop().then(() => {
-                                        html5QrCode.clear();
-                                        handleScanSuccess(decodedText);
-                                    }).catch(err => {
-                                        // Force handle success even if stop fails
-                                        handleScanSuccess(decodedText);
-                                    });
-                                },
-                                (errorMessage) => {
-                                    // ignore
-                                }
-                            );
-                            scannerRef.current = html5QrCode;
-                        } catch (err) {
-                            console.error(err);
-                            showNotify("ไม่สามารถเริ่มกล้องได้ (เช็คสิทธิ์/HTTPS)", "error");
-                            setIsCameraOpen(false);
-                        }
-                    };
-                    startCamera();
-                }
-
-                // Cleanup
-                return () => {
-                    if (scannerRef.current && scannerRef.current.isScanning) {
-                        scannerRef.current.stop().then(() => scannerRef.current.clear()).catch(err => {});
-                        scannerRef.current = null;
-                    }
-                };
-            }, [isCameraOpen]);
 
             // --- Smart ID: Max + 1 ---
             const getNextId = (currentProducts) => {
@@ -419,8 +443,8 @@
             };
 
             // --- Manual Sync Functions ---
-            const importFromSheet = async (overrideUrl = null) => {
-                let url = overrideUrl || sheetUrl.trim();
+            const importFromSheet = async () => {
+                let url = sheetUrl.trim();
                 
                 if (!url) { showNotify("กรุณาใส่ Google Script URL ในตั้งค่า", "error"); return; }
 
@@ -797,18 +821,12 @@
                         </div>
                     )}
 
-                    {/* Scanner Modal */}
+                    {/* Scanner Modal (React Component Approach) */}
                     {isCameraOpen && (
-                        <div className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center">
-                            <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden relative m-4 shadow-2xl">
-                                <button onClick={() => setIsCameraOpen(false)} className="absolute top-4 right-4 z-[110] bg-white/20 hover:bg-white/40 p-2 rounded-full text-white backdrop-blur-md transition border border-white/30"><IconClose /></button>
-                                <div id="reader" className="w-full"></div>
-                                <div className="p-6 text-center space-y-2">
-                                    <p className="text-emerald-600 font-black">กำลังค้นหาบาร์โค้ด...</p>
-                                    <p className="text-xs text-gray-400">เล็งกล้องไปที่บาร์โค้ดให้ชัดเจน</p>
-                                </div>
-                            </div>
-                        </div>
+                        <BarcodeScanner 
+                            onScan={handleScanSuccess} 
+                            onClose={() => setIsCameraOpen(false)} 
+                        />
                     )}
 
                     {/* Settings Modal */}
@@ -945,21 +963,6 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
-
-        // Initialize Scanner inside HTML5-Qrcode wrapper
-        window.onload = () => {
-            const observer = new MutationObserver((mutations) => {
-                if (document.getElementById('reader') && !window.scannerInitialized) {
-                    const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
-                    html5QrcodeScanner.render((text) => {
-                        const event = new CustomEvent('scanSuccess', { detail: text });
-                        window.dispatchEvent(event);
-                    }, () => {});
-                    window.scannerInitialized = true;
-                }
-            });
-            observer.observe(document.body, { childList: true, subtree: true });
-        };
     </script>
 </body>
 </html>
