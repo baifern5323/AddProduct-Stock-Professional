@@ -129,19 +129,37 @@
             };
 
             // ==========================================
-            // 📸 ฟังก์ชันแกะบาร์โค้ดจากแอปกล้องโดยตรง (Fast & Native)
+            // 📸 ฟังก์ชันแกะบาร์โค้ดจากแอปกล้องโดยตรง (Fast & Native API)
             // ==========================================
             const handleNativeBarcodeScan = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
 
                 setIsScanning(true);
-                showNotify("กำลังอ่านบาร์โค้ดจากรูป...", "info");
+                showNotify("กำลังวิเคราะห์รูปภาพ...", "info");
                 
                 try {
-                    // เรียกใช้งาน Html5Qrcode อ่านรูปภาพโดยตรง (ทำงานแบบ Offline ไม่พึ่ง AI)
-                    const html5QrCode = new Html5Qrcode("hidden-file-reader");
-                    const decodedText = await html5QrCode.scanFile(file, true);
+                    let decodedText = null;
+
+                    // 1. ลองใช้ Native API ของมือถือ (Android Chrome มีระบบนี้ สแกนไวและแม่นยำที่สุด)
+                    if ('BarcodeDetector' in window) {
+                        try {
+                            const barcodeDetector = new window.BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'upc_a', 'upc_e'] });
+                            const imageBitmap = await createImageBitmap(file);
+                            const barcodes = await barcodeDetector.detect(imageBitmap);
+                            if (barcodes.length > 0) {
+                                decodedText = barcodes[0].rawValue;
+                            }
+                        } catch (err) {
+                            console.warn("BarcodeDetector API failed", err);
+                        }
+                    }
+
+                    // 2. ถ้าวิธีแรกไม่ได้ผล ลองใช้ Library html5-qrcode
+                    if (!decodedText) {
+                        const html5QrCode = new Html5Qrcode("hidden-file-reader");
+                        decodedText = await html5QrCode.scanFile(file, true);
+                    }
                     
                     // อ่านสำเร็จ
                     setFormData(prev => ({ ...prev, barcode: decodedText }));
@@ -157,7 +175,7 @@
                 } catch (err) {
                     // อ่านไม่สำเร็จ
                     console.log("Local scan failed:", err);
-                    showNotify("❌ อ่านบาร์โค้ดไม่สำเร็จ โปรดถ่ายให้เห็นแท่งบาร์โค้ดชัดเจน", "error");
+                    showNotify("❌ อ่านไม่สำเร็จ โปรดแตะหน้าจอให้กล้องโฟกัสชัดๆ ก่อนกดถ่าย", "error");
                 } finally {
                     setIsScanning(false);
                     e.target.value = ""; // รีเซ็ต input ให้กดถ่ายซ้ำได้
@@ -488,6 +506,7 @@
                                         <div className="flex-1">
                                             <label className="text-xs font-bold text-gray-500 ml-1">บาร์โค้ด <span className="text-gray-400 font-normal">(ถ้ามี)</span></label>
                                             <input type="text" name="barcode" value={formData.barcode} onChange={handleChange} className="w-full p-3 bg-gray-50 rounded-2xl border focus:border-emerald-500 outline-none transition" placeholder="เลขบาร์โค้ด (ว่างได้)" />
+                                            <p className="text-[10px] text-gray-400 ml-1 mt-1">* เคล็ดลับ: แตะหน้าจอเพื่อโฟกัสภาพให้ชัดก่อนกดถ่าย</p>
                                         </div>
                                         {/* ปุ่มเปิดแอปกล้องมือถือสแกนโดยตรง (Native 100%) */}
                                         <input type="file" accept="image/*" capture="environment" className="hidden" ref={nativeScannerRef} onChange={handleNativeBarcodeScan} />
