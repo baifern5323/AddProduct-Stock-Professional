@@ -68,39 +68,60 @@
         const IconShieldAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
 
         // ==========================================
-        // 📷 Component สำหรับเปิดกล้องสแกนสด
+        // 📷 Component สำหรับเปิดกล้องสแกนสด (ฉบับปรับปรุง)
         // ==========================================
         const LiveScannerModal = ({ onScanSuccess, onClose }) => {
-            const { useEffect } = React;
+            const { useEffect, useRef } = React;
+            // ใช้ Ref เพื่อให้แน่ใจว่าจะไม่เผลอ start กล้องซ้ำซ้อน
+            const html5QrCodeRef = useRef(null);
 
             useEffect(() => {
-                // สร้าง instance ของ scanner
-                const html5QrCode = new Html5Qrcode("reader");
-                const config = { fps: 10, qrbox: { width: 250, height: 100 } };
+                // สร้าง Instance แค่ครั้งเดียว
+                if (!html5QrCodeRef.current) {
+                    html5QrCodeRef.current = new Html5Qrcode("reader");
+                }
+                const html5QrCode = html5QrCodeRef.current;
+                let isScanning = false; // ป้องกันการยิง success ซ้ำ
 
-                // เริ่มเปิดกล้อง
+                const config = { 
+                    fps: 10, 
+                    // ปรับขนาดให้เป็นแนวยาว เหมาะกับบาร์โค้ดแท่ง (1D)
+                    qrbox: { width: 300, height: 120 }, 
+                    aspectRatio: 1.0,
+                    // เปิดใช้ Hardware Detector ของมือถือถ้ามี จะสแกนไวปรี๊ด
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true 
+                    }
+                };
+
                 html5QrCode.start(
-                    { facingMode: "environment" }, // บังคับใช้กล้องหลัง
+                    { facingMode: "environment" }, // กล้องหลัง
                     config,
                     (decodedText) => {
-                        // สแกนสำเร็จ -> ปิดกล้อง -> ส่งค่ากลับ
-                        html5QrCode.stop().then(() => {
-                            html5QrCode.clear();
-                            onScanSuccess(decodedText);
-                        }).catch(console.error);
+                        // ถ้าสแกนติดแล้ว ให้ล็อกสถานะไว้ไม่ให้ทำงานซ้ำ
+                        if (!isScanning) {
+                            isScanning = true;
+                            // หยุดกล้องและล้าง UI ก่อนส่งค่ากลับ
+                            html5QrCode.stop().then(() => {
+                                html5QrCode.clear();
+                                onScanSuccess(decodedText);
+                            }).catch(console.error);
+                        }
                     },
                     (errorMessage) => {
-                        // ข้าม error ที่เกิดระหว่างกำลังพยายามโฟกัสบาร์โค้ด
+                        // ปล่อยว่างไว้ เพราะมันจะ log ตลอดเวลาที่ระบบกำลังพยายามหาโฟกัสภาพ
                     }
                 ).catch((err) => {
                     console.error("Camera error:", err);
-                    alert("ไม่สามารถเปิดกล้องได้: โปรดตรวจสอบว่าเบราว์เซอร์อนุญาตการเข้าถึงกล้องแล้ว หรือต้องรันผ่าน HTTPS (เช่น Netlify / Cloudflare Tunnel)");
+                    alert("ไม่สามารถเข้าถึงกล้องได้: โปรดตรวจสอบว่าเบราว์เซอร์อนุญาตกล้องแล้ว หรือต้องเปิดผ่าน HTTPS เท่านั้น (เช่นการทำ Forward Port ผ่าน Cloudflare Tunnel)");
                 });
 
-                // Cleanup function ปิดกล้องเมื่อ Unmount
+                // Cleanup ตอนกดปิด (Unmount)
                 return () => {
                     if (html5QrCode.isScanning) {
-                        html5QrCode.stop().then(() => html5QrCode.clear()).catch(console.error);
+                        html5QrCode.stop()
+                            .then(() => html5QrCode.clear())
+                            .catch(console.error);
                     }
                 };
             }, [onScanSuccess]);
@@ -117,11 +138,12 @@
                             </button>
                         </div>
                         <div className="p-4 bg-gray-900 flex justify-center items-center">
-                            {/* ตรงนี้คือพื้นที่ที่กล้องจะแสดง */}
-                            <div id="reader" className="w-full rounded-2xl overflow-hidden bg-black min-h-[250px]"></div>
+                            {/* กรอบแสดงภาพกล้อง */}
+                            <div id="reader" className="w-full rounded-2xl overflow-hidden bg-black min-h-[250px] relative"></div>
                         </div>
-                        <div className="p-4 text-center text-gray-500 text-sm font-bold bg-white">
-                            ขยับกล้องเข้า-ออก เพื่อให้ภาพโฟกัสชัดเจน
+                        <div className="p-4 text-center space-y-1 bg-white">
+                            <div className="text-gray-800 text-sm font-bold">ขยับมือถือเข้า-ออก เพื่อปรับโฟกัส</div>
+                            <div className="text-gray-400 text-xs">ให้เส้นบาร์โค้ดอยู่ในกรอบสี่เหลี่ยม</div>
                         </div>
                     </div>
                 </div>
