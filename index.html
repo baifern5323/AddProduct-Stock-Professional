@@ -10,7 +10,6 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <!-- Html5-Qrcode Library -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
     <style>
@@ -23,6 +22,8 @@
         .animate-spin-slow { animation: spin-slow 2s linear infinite; }
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        /* แต่งกรอบวีดีโอสแกนเนอร์ */
+        #reader video { border-radius: 1rem; object-fit: cover; }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
@@ -63,6 +64,7 @@
         const IconAlertCircle = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
         const IconTag = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>;
         const IconCheckCircle = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+        const IconShieldAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
 
         function App() {
             const [currentScreen, setCurrentScreen] = useState('home');
@@ -75,6 +77,7 @@
             const [searchTerm, setSearchTerm] = useState('');
             const [searchGroup, setSearchGroup] = useState('ทั้งหมด');
             const [imagePreview, setImagePreview] = useState(null);
+            const [duplicateItem, setDuplicateItem] = useState(null);
 
             // Settings & Config
             const [showSettings, setShowSettings] = useState(false);
@@ -87,11 +90,17 @@
             const [isAiLoading, setIsAiLoading] = useState(false);
             const [isSyncing, setIsSyncing] = useState(false);
             const [saveStatus, setSaveStatus] = useState(''); 
-            const [isScanning, setIsScanning] = useState(false);
+            
+            // Scanner States
+            const [isLiveScanning, setIsLiveScanning] = useState(false);
+            const scannerRef = useRef(null);
+
+            const [showClearModal, setShowClearModal] = useState(false);
+            const [securityCode, setSecurityCode] = useState('');
+            const [confirmCode, setConfirmCode] = useState('');
 
             const nameInputRef = useRef(null);
-            const nativeScannerRef = useRef(null); 
-            const fileInputRef = useRef(null);     
+            const fileInputRef = useRef(null);     // Ref สำหรับ AI
 
             useEffect(() => {
                 const saved = localStorage.getItem('sabuy_stock_data_pro');
@@ -123,164 +132,100 @@
             };
 
             // ==========================================
-            // ☁️ Cloud Sync (บันทึกลง Google Sheet)
+            // 📸 ระบบเปิดกล้องสแกนบาร์โค้ดสด (Live Camera Scanner)
             // ==========================================
-            const saveToCloud = async (dataToSave) => {
-                const url = sheetUrl.trim();
-                if (!url) return; 
-                
-                const sortedData = [...dataToSave].sort((a, b) => parseInt(a.id) - parseInt(b.id));
-
-                setSaveStatus('saving');
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify({ action: 'save', data: sortedData })
+            const startLiveScan = () => {
+                setIsLiveScanning(true);
+                // หน่วงเวลาเล็กน้อยเพื่อให้หน้าจอ Render Div #reader ก่อน
+                setTimeout(() => {
+                    scannerRef.current = new Html5Qrcode("reader");
+                    scannerRef.current.start(
+                        { facingMode: "environment" }, // ใช้กล้องหลัง
+                        {
+                            fps: 10,
+                            qrbox: { width: 250, height: 100 }, // กรอบโฟกัสแนวนอน
+                        },
+                        (decodedText) => {
+                            // เมื่อสแกนติด
+                            stopLiveScan(); // ปิดกล้อง
+                            setFormData(prev => ({ ...prev, barcode: decodedText }));
+                            showNotify(`✅ สแกนสำเร็จ: ${decodedText}`);
+                            
+                            // ตรวจสอบข้อมูลซ้ำ
+                            const existing = products.find(p => p.barcode === decodedText);
+                            if (existing) {
+                                setDuplicateItem(existing);
+                            } else {
+                                if (nameInputRef.current) nameInputRef.current.focus();
+                            }
+                        },
+                        (errorMessage) => {
+                            // กำลังค้นหาบาร์โค้ด... (ทำงานเงียบๆ)
+                        }
+                    ).catch(err => {
+                        console.error("Camera error:", err);
+                        showNotify("❌ ไม่สามารถเปิดกล้องได้ โปรดอนุญาตการใช้กล้อง หรือใช้ใน https เท่านั้น", "error");
+                        setIsLiveScanning(false);
                     });
-                    if (response.ok) {
-                        setSaveStatus('saved');
-                        setTimeout(() => setSaveStatus(''), 3000);
-                    } else throw new Error("Save Failed");
-                } catch (e) {
-                    setSaveStatus('error');
-                }
+                }, 200);
             };
 
-            // ==========================================
-            // 📸 ถ่ายรูปสแกนและบันทึกลง Google Sheet ทันที!
-            // ==========================================
-            const handleNativeBarcodeScan = async (e) => {
+            const stopLiveScan = async () => {
+                if (scannerRef.current) {
+                    try {
+                        await scannerRef.current.stop();
+                        scannerRef.current.clear();
+                    } catch (err) {
+                        console.log("Error stopping scanner", err);
+                    }
+                }
+                setIsLiveScanning(false);
+            };
+
+            // AI อเนกประสงค์สำหรับวิเคราะห์รูปภาพสินค้า
+            const handleImageUpload = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
-
-                setIsScanning(true);
-                showNotify("กำลังอ่านบาร์โค้ดและส่งเข้า Cloud...", "info");
-                
-                try {
-                    let decodedText = null;
-
-                    // ใช้ Native API ของ Chrome มือถือถ้ามี (ทำงานไวที่สุด)
-                    if ('BarcodeDetector' in window) {
-                        try {
-                            const barcodeDetector = new window.BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'upc_a', 'upc_e'] });
-                            const imageBitmap = await createImageBitmap(file);
-                            const barcodes = await barcodeDetector.detect(imageBitmap);
-                            if (barcodes.length > 0) {
-                                decodedText = barcodes[0].rawValue;
-                            }
-                        } catch (err) { console.warn("BarcodeDetector API failed", err); }
-                    }
-
-                    // ถ้าไม่มี API ให้ใช้ Library ในเครื่องแกะตัวเลขจากภาพ (Offline)
-                    if (!decodedText) {
-                        const html5QrCode = new Html5Qrcode("hidden-file-reader");
-                        decodedText = await html5QrCode.scanFile(file, true);
-                    }
-                    
-                    if (decodedText) {
-                        processScannedBarcode(decodedText);
-                    } else {
-                        showNotify("❌ อ่านไม่สำเร็จ โปรดแตะหน้าจอเพื่อโฟกัสให้ชัดก่อนกดถ่ายรูป", "error");
-                    }
-                } catch (err) {
-                    console.log("Local scan failed:", err);
-                    showNotify("❌ อ่านไม่สำเร็จ โปรดแตะหน้าจอให้กล้องโฟกัสภาพชัดๆ", "error");
-                } finally {
-                    setIsScanning(false);
-                    e.target.value = ""; // รีเซ็ต input
-                }
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setImagePreview(reader.result);
+                    callGeminiGeneral(reader.result); 
+                };
+                reader.readAsDataURL(file);
+                e.target.value = "";
             };
 
-            // ฟังก์ชันจัดการหลังสแกนสำเร็จ (เช็คซ้ำ/บวกสต็อก/สร้างใหม่/บันทึก Cloud ทันที)
-            const processScannedBarcode = (decodedText) => {
-                const existing = products.find(p => p.barcode === decodedText);
-                
-                if (existing) {
-                    // ถ้ามีสินค้าอยู่แล้ว: บวกสต็อก +1 และ Save ทันที
-                    const updatedProducts = products.map(p => 
-                        p.id === existing.id 
-                            ? { ...p, stock: Math.max(0, parseFloat(p.stock || 0)) + 1, updateTime: new Date().toLocaleString('th-TH') } 
-                            : p
-                    );
-                    setProducts(updatedProducts);
-                    saveToCloud(updatedProducts); // บันทึกลง Sheet ทันที!
-                    showNotify(`✅ อัปเดตสต็อก ${existing.name} (+1) เรียบร้อยแล้ว!`);
-                    setFormData({ barcode: '', name: '', price: '', stock: 1, unit: 'ชิ้น', group: 'ทั่วไป', brand: '' });
-                    setEditId(null);
-                } else {
-                    // ถ้ายังไม่มีสินค้า: สร้างแถวใหม่ใน Sheet ให้เลยทันที เพื่อรอแก้ชื่อ
-                    const timestamp = new Date().toLocaleString('th-TH');
-                    const newId = getNextId(products);
-                    const newProduct = {
-                        id: newId,
-                        barcode: decodedText,
-                        name: "สินค้าใหม่ (รอระบุชื่อ)", 
-                        price: 0,
-                        stock: 1,
-                        unit: 'ชิ้น',
-                        group: 'ทั่วไป',
-                        brand: '',
-                        createTime: timestamp,
-                        updateTime: timestamp
-                    };
-                    
-                    const updatedProducts = [newProduct, ...products];
-                    setProducts(updatedProducts);
-                    saveToCloud(updatedProducts); // บันทึกลง Sheet ทันที!
-                    
-                    // ดึงข้อมูลขึ้นมาให้ผู้ใช้พิมพ์ชื่อแก้ไข
-                    setEditId(newId);
-                    setFormData(newProduct);
-                    showNotify(`✅ บันทึกบาร์โค้ดใหม่ลง Sheet แล้ว! โปรดพิมพ์ชื่อสินค้า`);
-                    if (nameInputRef.current) nameInputRef.current.focus();
-                }
-            };
-
-            // ==========================================
-            // ฟังก์ชันอื่นๆ
-            // ==========================================
-            const testConnection = async () => {
-                let url = sheetUrl.trim();
-                if (url.includes('/edit')) {
-                    alert("URL ผิด: ห้ามใช้ลิงก์ /edit\nต้องใช้ลิงก์ Web App (/exec) จากการกด Deploy");
+            const callGeminiGeneral = async (imageData) => {
+                if (!apiKey.trim()) {
+                    showNotify('กรุณาใส่ API Key ในการตั้งค่า', 'error');
+                    setShowSettings(true);
                     return;
                 }
-                setIsSyncing(true);
+                setIsAiLoading(true);
+                
+                const promptText = `วิเคราะห์รูปสินค้า ตอบเป็น JSON เท่านั้น: {"barcode": "ตัวเลขบาร์โค้ด (ถ้ามี ปล่อยว่างถ้าไม่มี)", "name": "ชื่อสินค้าภาษาไทย", "group": "กลุ่มสินค้า", "brand": "ยี่ห้อ", "price": ราคาประเมินเป็นตัวเลข, "unit": "หน่วยนับ"}`;
+
                 try {
-                    const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}action=ping&_t=${Date.now()}`;
-                    const response = await fetch(fetchUrl);
-                    if (response.ok) {
-                         showNotify("✅ เชื่อมต่อสำเร็จ! (Connected)");
-                         localStorage.setItem('google_sheet_url', url);
-                         return;
-                    }
-                    throw new Error("Response not ok");
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: "image/jpeg", data: imageData.split(',')[1] } }] }] })
+                    });
+                    const data = await response.json();
+                    const aiText = data.candidates[0].content.parts[0].text;
+                    const result = JSON.parse(aiText.match(/\{[\s\S]*\}/)[0]);
+                    
+                    setFormData(prev => {
+                        const newData = { ...prev, ...result };
+                        if (!result.barcode) newData.barcode = prev.barcode;
+                        return newData;
+                    });
+                    showNotify("AI วิเคราะห์ข้อมูลเรียบร้อย!");
                 } catch (e) {
-                    showNotify("❌ เชื่อมต่อไม่ได้ (ตรวจสอบสิทธิ์ Anyone)", "error");
+                    showNotify("AI Error", "error");
                 } finally {
-                    setIsSyncing(false);
+                    setIsAiLoading(false);
                 }
-            };
-
-            const handleChange = (e) => {
-                const { name, value } = e.target;
-                if ((name === 'price' || name === 'stock') && parseFloat(value) < 0) return;
-                setFormData(prev => ({ ...prev, [name]: value }));
-            };
-
-            const updateQuickStock = (id, newStockVal) => {
-                const updatedProducts = products.map(p => 
-                    p.id === id ? { ...p, stock: Math.max(0, parseFloat(newStockVal)), updateTime: new Date().toLocaleString('th-TH') } : p
-                );
-                setProducts(updatedProducts);
-                saveToCloud(updatedProducts); 
-            };
-
-            const adjustQuickStock = (id, delta) => {
-                const product = products.find(p => p.id === id);
-                if (!product) return;
-                updateQuickStock(id, Math.max(0, parseFloat(product.stock || 0) + delta));
             };
 
             const handleSubmit = (e) => {
@@ -342,6 +287,102 @@
                     setIsSyncing(false);
                 }
             };
+            
+            const saveToCloud = async (dataToSave) => {
+                const url = sheetUrl.trim();
+                if (!url) return; 
+                
+                const sortedData = [...dataToSave].sort((a, b) => parseInt(a.id) - parseInt(b.id));
+
+                setSaveStatus('saving');
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({ action: 'save', data: sortedData })
+                    });
+                    if (response.ok) {
+                        setSaveStatus('saved');
+                        setTimeout(() => setSaveStatus(''), 3000);
+                    } else throw new Error("Save Failed");
+                } catch (e) {
+                    setSaveStatus('error');
+                }
+            };
+
+            const testConnection = async () => {
+                let url = sheetUrl.trim();
+                if (url.includes('/edit')) {
+                    alert("URL ผิด: ห้ามใช้ลิงก์ /edit\nต้องใช้ลิงก์ Web App (/exec) จากการกด Deploy");
+                    return;
+                }
+                if (!url.endsWith('/exec')) {
+                    if(!confirm("URL ดูแปลกๆ (ควรลงท้ายด้วย /exec)\nจะลองทดสอบดูไหม?")) return;
+                }
+
+                setIsSyncing(true);
+                try {
+                    const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}action=ping&_t=${Date.now()}`;
+                    const response = await fetch(fetchUrl);
+                    if (response.ok) {
+                         showNotify("✅ เชื่อมต่อสำเร็จ! (Connected)");
+                         localStorage.setItem('google_sheet_url', url);
+                         return;
+                    }
+                    throw new Error("Response not ok");
+                } catch (e) {
+                    showNotify("❌ เชื่อมต่อไม่ได้ (ตรวจสอบสิทธิ์ Anyone)", "error");
+                } finally {
+                    setIsSyncing(false);
+                }
+            };
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                if ((name === 'price' || name === 'stock') && parseFloat(value) < 0) return;
+                setFormData(prev => ({ ...prev, [name]: value }));
+            };
+
+            const updateQuickStock = (id, newStockVal) => {
+                const updatedProducts = products.map(p => 
+                    p.id === id ? { ...p, stock: Math.max(0, parseFloat(newStockVal)), updateTime: new Date().toLocaleString('th-TH') } : p
+                );
+                setProducts(updatedProducts);
+                saveToCloud(updatedProducts); 
+            };
+
+            const adjustQuickStock = (id, delta) => {
+                const product = products.find(p => p.id === id);
+                if (!product) return;
+                updateQuickStock(id, Math.max(0, parseFloat(product.stock || 0) + delta));
+            };
+
+            // --- Clear Data Logic ---
+            const generateSecurityCode = () => {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                let result = '';
+                for (let i = 0; i < 5; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+                return result;
+            };
+
+            const initiateClearData = () => {
+                if (products.length === 0) return showNotify("ไม่มีข้อมูลให้ลบ", "error");
+                setSecurityCode(generateSecurityCode());
+                setConfirmCode('');
+                setShowClearModal(true);
+            };
+
+            const executeClearData = () => {
+                if (confirmCode !== securityCode) return showNotify("รหัสไม่ถูกต้อง!", "error");
+                if (confirm("ยืนยันการลบข้อมูลทั้งหมดหรือไม่?")) {
+                    setProducts([]);
+                    localStorage.setItem('sabuy_stock_data_pro', JSON.stringify([]));
+                    saveToCloud([]); 
+                    setShowClearModal(false);
+                    setShowSettings(false);
+                    showNotify("ล้างข้อมูลเรียบร้อยแล้ว");
+                }
+            };
 
             const filteredProducts = products.filter(p => {
                 const matchesSearch = p.barcode.includes(searchTerm) || p.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -351,9 +392,6 @@
 
             return (
                 <div className="max-w-md mx-auto min-h-screen pb-20 shadow-xl bg-white relative">
-                    {/* ซ่อน Div สำหรับประมวลผลรูปภาพบาร์โค้ด */}
-                    <div id="hidden-file-reader" className="hidden"></div>
-
                     {notification.message && (
                         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-full shadow-2xl text-white font-bold text-sm flex items-center gap-2 animate-bounce ${notification.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}>
                             {notification.message}
@@ -396,7 +434,6 @@
                                 <h2 className="text-lg font-bold text-gray-800 px-2 flex items-center justify-between">
                                     {editId ? '📝 แก้ไขสินค้า' : '📦 เพิ่มสินค้าใหม่'}
                                     {isAiLoading && <span className="text-xs text-emerald-600 animate-pulse">AI กำลังทำงาน...</span>}
-                                    {isScanning && <span className="text-xs text-indigo-600 animate-pulse">กำลังอ่านบาร์โค้ด...</span>}
                                 </h2>
 
                                 <form onSubmit={handleSubmit} className="space-y-3">
@@ -404,19 +441,28 @@
                                         <div className="flex-1">
                                             <label className="text-xs font-bold text-gray-500 ml-1">บาร์โค้ด <span className="text-gray-400 font-normal">(ถ้ามี)</span></label>
                                             <input type="text" name="barcode" value={formData.barcode} onChange={handleChange} className="w-full p-3 bg-gray-50 rounded-2xl border focus:border-emerald-500 outline-none transition" placeholder="เลขบาร์โค้ด (ว่างได้)" />
-                                            <p className="text-[10px] text-gray-400 ml-1 mt-1">* กดปุ่มกล้อง 👉 ถ่ายรูป 👉 ข้อมูลจะวิ่งเข้า Sheet อัตโนมัติทันที</p>
                                         </div>
-                                        {/* ปุ่มเปิดแอปกล้องมือถือสแกนโดยตรง (Native 100%) */}
-                                        <input type="file" accept="image/*" capture="environment" className="hidden" ref={nativeScannerRef} onChange={handleNativeBarcodeScan} />
+                                        {/* ปุ่มเปิด Scanner สด */}
                                         <button 
                                             type="button" 
-                                            onClick={() => nativeScannerRef.current.click()} 
-                                            className={`mt-5 p-3 text-white rounded-2xl shadow-lg transition ${isScanning ? 'bg-indigo-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'}`}
-                                            disabled={isScanning}
-                                            title="ถ่ายรูปสแกนบาร์โค้ด"
+                                            onClick={startLiveScan} 
+                                            className="mt-5 p-3 text-white rounded-2xl shadow-lg transition bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100"
                                         >
-                                            {isScanning ? <IconCloudUpload className="animate-spin-slow" /> : <IconCamera />}
+                                            <IconCamera />
                                         </button>
+                                    </div>
+
+                                    {imagePreview && (
+                                        <div className="relative w-24 h-24 mx-auto border rounded-2xl overflow-hidden group">
+                                            <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                                            <button onClick={() => setImagePreview(null)} className="absolute top-1 right-1 bg-white/80 p-1 rounded-full text-red-500 opacity-0 group-hover:opacity-100 transition"><IconClose /></button>
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-2">
+                                        {/* ปุ่ม AI ดึงข้อมูลทั้งหมดรวมถึงชื่อ/ราคา */}
+                                        <input type="file" ref={fileInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                                        <button type="button" onClick={() => fileInputRef.current.click()} className="flex-1 py-3 bg-emerald-50 text-emerald-700 border-2 border-emerald-200 rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-emerald-100 transition shadow-sm"><IconSparkles /> AI ถ่ายรูปเพื่อดึงข้อมูลทั้งหมด</button>
                                     </div>
 
                                     <div>
@@ -533,6 +579,7 @@
                                                 </div>
                                                 <div className="flex gap-2">
                                                     <button onClick={() => { setEditId(p.id); setFormData(p); setCurrentScreen('home'); }} className="p-2 text-emerald-500 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition"><IconEdit /></button>
+                                                    <button onClick={() => { if(confirm('ลบรายการนี้?')) setProducts(ps => ps.filter(x => x.id !== p.id)) }} className="p-2 text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition"><IconTrash2 /></button>
                                                 </div>
                                             </div>
                                             <div className="flex items-center justify-between mt-4 pl-11">
@@ -551,10 +598,59 @@
                                             </div>
                                         </div>
                                     ))}
+                                    {filteredProducts.length === 0 && <div className="text-center py-20 text-gray-400 font-bold">ไม่พบข้อมูลสินค้า</div>}
                                 </div>
                             </section>
                         )}
                     </main>
+
+                    {/* Bottom Floating Bar */}
+                    {currentScreen === 'view' && (
+                        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xs px-4 flex gap-2">
+                            <button onClick={exportToExcel} className="flex-1 py-3 bg-emerald-600 text-white rounded-2xl shadow-xl shadow-emerald-100 font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition">
+                                <IconFileSpreadsheet /> Excel
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Live Scanner Modal */}
+                    {isLiveScanning && (
+                        <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                            <div className="w-full max-w-md bg-white rounded-[32px] overflow-hidden shadow-2xl relative">
+                                <div className="p-4 bg-emerald-600 text-white flex justify-between items-center">
+                                    <h3 className="font-bold flex items-center gap-2"><IconCamera /> สแกนบาร์โค้ด</h3>
+                                    <button onClick={stopLiveScan} className="p-1 hover:bg-emerald-700 rounded-full transition"><IconClose /></button>
+                                </div>
+                                <div className="p-4 bg-gray-900 flex justify-center items-center">
+                                    <div id="reader" className="w-full rounded-2xl overflow-hidden bg-black min-h-[250px]"></div>
+                                </div>
+                                <div className="p-4 text-center text-gray-500 text-sm font-bold bg-white">
+                                    ขยับกล้องให้บาร์โค้ดอยู่ในกรอบที่กำหนด
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Duplicate Modal */}
+                    {duplicateItem && (
+                        <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-6 backdrop-blur-sm">
+                            <div className="bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl space-y-6 text-center">
+                                <div className="w-20 h-20 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto">
+                                    <IconAlertCircle />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-gray-800">พบสินค้าซ้ำ!</h3>
+                                    <p className="text-gray-500 text-sm mt-1 font-bold">"{duplicateItem.name}"</p>
+                                    <p className="text-gray-400 text-xs mt-1">มีอยู่ในระบบแล้ว คุณต้องการทำอะไร?</p>
+                                </div>
+                                <div className="space-y-3 pt-2">
+                                    <button onClick={() => { adjustQuickStock(duplicateItem.id, 1); setDuplicateItem(null); setFormData(p => ({...p, barcode: ''})); }} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 hover:bg-emerald-700">บวกสต็อกเพิ่ม (+1)</button>
+                                    <button onClick={() => { setEditId(duplicateItem.id); setFormData(duplicateItem); setDuplicateItem(null); setCurrentScreen('home'); }} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700">แก้ไขข้อมูลรายการเดิม</button>
+                                    <button onClick={() => { setDuplicateItem(null); setFormData(p => ({...p, barcode: ''})); }} className="w-full py-4 bg-gray-100 text-gray-500 rounded-2xl font-black hover:bg-gray-200">ยกเลิก</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Settings Modal */}
                     {showSettings && (
@@ -565,6 +661,10 @@
                                     <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-gray-100 rounded-full"><IconClose /></button>
                                 </div>
                                 <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500 ml-1">Gemini API Key</label>
+                                        <input type="password" value={apiKey} onChange={e => {setApiKey(e.target.value); localStorage.setItem('gemini_api_key', e.target.value);}} className="w-full p-3 bg-gray-50 rounded-2xl border outline-none text-sm" placeholder="Paste API Key..." />
+                                    </div>
                                     <div>
                                         <label className="text-xs font-bold text-gray-500 ml-1">Google Sheet App URL</label>
                                         <div className="flex gap-2">
@@ -580,10 +680,18 @@
                                                 {isSyncing ? '...' : <IconCheckCircle />}
                                             </button>
                                         </div>
+                                        <p className="text-[10px] text-gray-400 mt-1">วาง URL ของ Google Apps Script Web App</p>
                                     </div>
-                                    <button onClick={() => importFromSheet()} disabled={isSyncing} className="w-full py-3 bg-orange-500 text-white rounded-2xl text-xs font-bold hover:bg-orange-600 transition flex flex-col items-center justify-center gap-1">
-                                        <IconCloudDownload /> ดึงข้อมูลจาก Cloud มาทับ
-                                    </button>
+                                    
+                                    <div className="pt-2 border-t space-y-3">
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Google Cloud Sync</p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button onClick={() => importFromSheet()} disabled={isSyncing} className="col-span-2 py-3 bg-orange-500 text-white rounded-2xl text-xs font-bold hover:bg-orange-600 transition flex flex-col items-center justify-center gap-1">
+                                                <IconCloudDownload /> ดึงข้อมูลจาก Cloud มาทับ
+                                            </button>
+                                        </div>
+                                    </div>
+
                                 </div>
                                 <button onClick={() => setShowSettings(false)} className="w-full py-4 bg-emerald-700 text-white rounded-2xl font-black mt-4">ปิดหน้าต่าง</button>
                             </div>
@@ -591,6 +699,31 @@
                     )}
                 </div>
             );
+        }
+
+        // --- Export Excel Helper ---
+        function exportToExcel() {
+            const products = JSON.parse(localStorage.getItem('sabuy_stock_data_pro') || '[]');
+            if (products.length === 0) return;
+            
+            const data = products.map((p, i) => ({
+                'ID': p.id,
+                'รหัสสินค้า': '',
+                'Barcode หลัก': p.barcode,
+                'ชื่อสินค้า': p.name,
+                'Stock': parseFloat(p.stock).toFixed(3),
+                'ราคาขาย 1': parseFloat(p.price || 0).toFixed(3),
+                'หน่วยเล็กที่สุด': p.unit,
+                'กลุ่มสินค้า': p.group || '', 
+                'Brand (ยี่ห้อสินค้า)': p.brand || '',
+                'Create Time': p.createTime || new Date().toLocaleString('th-TH'),
+                'Update Time': p.updateTime || new Date().toLocaleString('th-TH')
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+            XLSX.writeFile(wb, `Product_Lists_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
