@@ -23,6 +23,9 @@
         .animate-spin-slow { animation: spin-slow 2s linear infinite; }
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        /* สไตล์สำหรับ Live Scanner เต็มจอ */
+        #live-reader video { object-fit: cover; width: 100vw !important; height: 75vh !important; }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
@@ -54,7 +57,7 @@
         const IconCloudDownload = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
         const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
         const IconMinus = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>;
-        const IconSettings = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
+        const IconSettings = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
         const IconSparkles = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 5h4"/><path d="M3 9h4"/></svg>;
         const IconClose = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
         const IconList = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
@@ -63,7 +66,75 @@
         const IconAlertCircle = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
         const IconTag = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>;
         const IconCheckCircle = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
-        const IconShieldAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
+
+        // ==========================================
+        // 📷 Live Scanner Component (เหมือน Scanner.html)
+        // ==========================================
+        const LiveScanner = ({ onScan, onClose }) => {
+            useEffect(() => {
+                let html5QrCode;
+                let isUnmounted = false;
+                // เสียงตอนสแกนติด
+                const beepSound = new Audio('https://www.soundjay.com/buttons/sounds/beep-07a.mp3');
+
+                const startScanner = async () => {
+                    // รอ UI เรนเดอร์เสร็จ
+                    await new Promise(r => setTimeout(r, 200));
+                    if (isUnmounted || !document.getElementById("live-reader")) return;
+                    
+                    html5QrCode = new Html5Qrcode("live-reader");
+                    const config = { 
+                        fps: 20, 
+                        qrbox: { width: 300, height: 150 }, // กรอบแนวนอน
+                        aspectRatio: window.innerWidth / (window.innerHeight * 0.75)
+                    };
+
+                    const onScanSuccess = (decodedText) => {
+                        if (isUnmounted) return;
+                        beepSound.play().catch(e => console.log(e)); // เล่นเสียง
+                        // ปิดกล้องทันทีแล้วส่งค่ากลับไปที่ฟอร์มหลัก
+                        html5QrCode.stop().then(() => onScan(decodedText)).catch(() => onScan(decodedText));
+                    };
+
+                    try {
+                        // เปิดกล้องหลัง
+                        await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
+                    } catch (err) {
+                        if (!isUnmounted) {
+                            alert("ไม่สามารถเปิดกล้องได้: โปรดตรวจสอบการอนุญาตกล้อง หรือต้องเปิดเว็บผ่านลิงก์ https:// (เช่น GitHub Pages)");
+                            onClose();
+                        }
+                    }
+                };
+
+                startScanner();
+
+                return () => {
+                    isUnmounted = true;
+                    if (html5QrCode && html5QrCode.isScanning) {
+                        html5QrCode.stop().catch(console.error);
+                    }
+                };
+            }, [onScan, onClose]);
+
+            return (
+                <div className="fixed inset-0 bg-black z-[100] flex flex-col h-[100dvh]">
+                    {/* พื้นที่แสดงกล้อง */}
+                    <div id="live-reader" className="relative flex-grow flex items-center justify-center bg-black overflow-hidden"></div>
+                    
+                    {/* เมนูด้านล่าง */}
+                    <div className="h-1/4 bg-gray-900 rounded-t-3xl p-6 shadow-[0_-10px_20px_rgba(0,0,0,0.5)] flex flex-col justify-center items-center z-10 -mt-4 text-center">
+                        <p className="text-emerald-400 font-bold text-lg mb-4 animate-pulse">เล็งบาร์โค้ดเข้าหากล้อง...</p>
+                        <button 
+                            onClick={onClose} 
+                            className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-lg shadow-lg transition"
+                        >
+                            หยุดสแกน / ปิดกล้อง
+                        </button>
+                    </div>
+                </div>
+            );
+        };
 
         function App() {
             const [currentScreen, setCurrentScreen] = useState('home');
@@ -78,6 +149,9 @@
             const [imagePreview, setImagePreview] = useState(null);
             const [duplicateItem, setDuplicateItem] = useState(null);
 
+            // เปิด/ปิด Scanner เต็มจอ
+            const [isLiveScannerOpen, setIsLiveScannerOpen] = useState(false);
+
             // Settings & Config
             const [showSettings, setShowSettings] = useState(false);
             const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
@@ -89,15 +163,13 @@
             const [isAiLoading, setIsAiLoading] = useState(false);
             const [isSyncing, setIsSyncing] = useState(false);
             const [saveStatus, setSaveStatus] = useState(''); 
-            const [isScanning, setIsScanning] = useState(false); // สถานะกำลังอ่านรูปบาร์โค้ด
 
             const [showClearModal, setShowClearModal] = useState(false);
             const [securityCode, setSecurityCode] = useState('');
             const [confirmCode, setConfirmCode] = useState('');
 
             const nameInputRef = useRef(null);
-            const nativeScannerRef = useRef(null); // Ref สำหรับถ่ายรูปสแกนบาร์โค้ด
-            const fileInputRef = useRef(null);     // Ref สำหรับ AI
+            const fileInputRef = useRef(null); // สำหรับ AI ดึงภาพรวม
 
             useEffect(() => {
                 const saved = localStorage.getItem('sabuy_stock_data_pro');
@@ -129,60 +201,71 @@
             };
 
             // ==========================================
-            // 📸 ฟังก์ชันแกะบาร์โค้ดจากแอปกล้องโดยตรง (Fast & Native API)
+            // เมื่อสแกนติดจากหน้า Live Scanner
             // ==========================================
-            const handleNativeBarcodeScan = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                setIsScanning(true);
-                showNotify("กำลังวิเคราะห์รูปภาพ...", "info");
+            const handleScanSuccess = (decodedText) => {
+                setIsLiveScannerOpen(false); // ปิดหน้ากล้อง
+                setFormData(prev => ({ ...prev, barcode: decodedText })); // นำเลขมาใส่ในช่อง
+                showNotify(`✅ สแกนได้เลข: ${decodedText}`);
                 
-                try {
-                    let decodedText = null;
-
-                    // 1. ลองใช้ Native API ของมือถือ (Android Chrome มีระบบนี้ สแกนไวและแม่นยำที่สุด)
-                    if ('BarcodeDetector' in window) {
-                        try {
-                            const barcodeDetector = new window.BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'upc_a', 'upc_e'] });
-                            const imageBitmap = await createImageBitmap(file);
-                            const barcodes = await barcodeDetector.detect(imageBitmap);
-                            if (barcodes.length > 0) {
-                                decodedText = barcodes[0].rawValue;
-                            }
-                        } catch (err) {
-                            console.warn("BarcodeDetector API failed", err);
-                        }
-                    }
-
-                    // 2. ถ้าวิธีแรกไม่ได้ผล ลองใช้ Library html5-qrcode
-                    if (!decodedText) {
-                        const html5QrCode = new Html5Qrcode("hidden-file-reader");
-                        decodedText = await html5QrCode.scanFile(file, true);
-                    }
-                    
-                    // อ่านสำเร็จ
-                    setFormData(prev => ({ ...prev, barcode: decodedText }));
-                    showNotify(`✅ สแกนสำเร็จ: ${decodedText}`);
-                    
-                    // ตรวจสอบข้อมูลซ้ำ
-                    const existing = products.find(p => p.barcode === decodedText);
-                    if (existing) {
-                        setDuplicateItem(existing);
-                    } else {
-                        if (nameInputRef.current) nameInputRef.current.focus();
-                    }
-                } catch (err) {
-                    // อ่านไม่สำเร็จ
-                    console.log("Local scan failed:", err);
-                    showNotify("❌ อ่านไม่สำเร็จ โปรดแตะหน้าจอให้กล้องโฟกัสชัดๆ ก่อนกดถ่าย", "error");
-                } finally {
-                    setIsScanning(false);
-                    e.target.value = ""; // รีเซ็ต input ให้กดถ่ายซ้ำได้
+                // ตรวจสอบข้อมูลซ้ำ
+                const existing = products.find(p => p.barcode === decodedText);
+                if (existing) {
+                    setDuplicateItem(existing);
+                } else {
+                    if (nameInputRef.current) nameInputRef.current.focus();
                 }
             };
 
-            // AI อเนกประสงค์สำหรับวิเคราะห์รูปภาพสินค้า (ปุ่มหน้าแรก)
+            // ==========================================
+            // ☁️ Cloud Sync (บันทึกลง Google Sheet)
+            // ==========================================
+            const saveToCloud = async (dataToSave) => {
+                const url = sheetUrl.trim();
+                if (!url) return; 
+                
+                const sortedData = [...dataToSave].sort((a, b) => parseInt(a.id) - parseInt(b.id));
+
+                setSaveStatus('saving');
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({ action: 'save', data: sortedData })
+                    });
+                    if (response.ok) {
+                        setSaveStatus('saved');
+                        setTimeout(() => setSaveStatus(''), 3000);
+                    } else throw new Error("Save Failed");
+                } catch (e) {
+                    setSaveStatus('error');
+                }
+            };
+
+            const testConnection = async () => {
+                let url = sheetUrl.trim();
+                if (url.includes('/edit')) {
+                    alert("URL ผิด: ห้ามใช้ลิงก์ /edit\nต้องใช้ลิงก์ Web App (/exec) จากการกด Deploy");
+                    return;
+                }
+                setIsSyncing(true);
+                try {
+                    const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}action=ping&_t=${Date.now()}`;
+                    const response = await fetch(fetchUrl);
+                    if (response.ok) {
+                         showNotify("✅ เชื่อมต่อสำเร็จ! (Connected)");
+                         localStorage.setItem('google_sheet_url', url);
+                         return;
+                    }
+                    throw new Error("Response not ok");
+                } catch (e) {
+                    showNotify("❌ เชื่อมต่อไม่ได้ (ตรวจสอบสิทธิ์ Anyone)", "error");
+                } finally {
+                    setIsSyncing(false);
+                }
+            };
+
+            // AI อเนกประสงค์สำหรับวิเคราะห์รูปภาพสินค้า (ปุ่มรูปดาว)
             const handleImageUpload = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -283,55 +366,6 @@
                     }
                 } catch (e) {
                     showNotify(`ดึงข้อมูลล้มเหลว`, "error");
-                } finally {
-                    setIsSyncing(false);
-                }
-            };
-            
-            const saveToCloud = async (dataToSave) => {
-                const url = sheetUrl.trim();
-                if (!url) return; 
-                
-                const sortedData = [...dataToSave].sort((a, b) => parseInt(a.id) - parseInt(b.id));
-
-                setSaveStatus('saving');
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify({ action: 'save', data: sortedData })
-                    });
-                    if (response.ok) {
-                        setSaveStatus('saved');
-                        setTimeout(() => setSaveStatus(''), 3000);
-                    } else throw new Error("Save Failed");
-                } catch (e) {
-                    setSaveStatus('error');
-                }
-            };
-
-            const testConnection = async () => {
-                let url = sheetUrl.trim();
-                if (url.includes('/edit')) {
-                    alert("URL ผิด: ห้ามใช้ลิงก์ /edit\nต้องใช้ลิงก์ Web App (/exec) จากการกด Deploy");
-                    return;
-                }
-                if (!url.endsWith('/exec')) {
-                    if(!confirm("URL ดูแปลกๆ (ควรลงท้ายด้วย /exec)\nจะลองทดสอบดูไหม?")) return;
-                }
-
-                setIsSyncing(true);
-                try {
-                    const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}action=ping&_t=${Date.now()}`;
-                    const response = await fetch(fetchUrl);
-                    if (response.ok) {
-                         showNotify("✅ เชื่อมต่อสำเร็จ! (Connected)");
-                         localStorage.setItem('google_sheet_url', url);
-                         return;
-                    }
-                    throw new Error("Response not ok");
-                } catch (e) {
-                    showNotify("❌ เชื่อมต่อไม่ได้ (ตรวจสอบสิทธิ์ Anyone)", "error");
                 } finally {
                     setIsSyncing(false);
                 }
@@ -453,13 +487,19 @@
 
             return (
                 <div className="max-w-md mx-auto min-h-screen pb-20 shadow-xl bg-white relative">
-                    {/* ซ่อน Div พื้นที่สแกนภาพเบื้องหลัง */}
-                    <div id="hidden-file-reader" className="absolute -top-full invisible"></div>
 
                     {notification.message && (
                         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-full shadow-2xl text-white font-bold text-sm flex items-center gap-2 animate-bounce ${notification.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}>
                             {notification.message}
                         </div>
+                    )}
+
+                    {/* แสดง Scanner แบบเต็มจอเมื่อกดปุ่มกล้อง */}
+                    {isLiveScannerOpen && (
+                        <LiveScanner 
+                            onScan={handleScanSuccess} 
+                            onClose={() => setIsLiveScannerOpen(false)} 
+                        />
                     )}
 
                     {/* Navbar */}
@@ -498,7 +538,6 @@
                                 <h2 className="text-lg font-bold text-gray-800 px-2 flex items-center justify-between">
                                     {editId ? '📝 แก้ไขสินค้า' : '📦 เพิ่มสินค้าใหม่'}
                                     {isAiLoading && <span className="text-xs text-emerald-600 animate-pulse">AI กำลังทำงาน...</span>}
-                                    {isScanning && <span className="text-xs text-indigo-600 animate-pulse">กำลังอ่านบาร์โค้ด...</span>}
                                 </h2>
 
                                 <form onSubmit={handleSubmit} className="space-y-3">
@@ -506,17 +545,14 @@
                                         <div className="flex-1">
                                             <label className="text-xs font-bold text-gray-500 ml-1">บาร์โค้ด <span className="text-gray-400 font-normal">(ถ้ามี)</span></label>
                                             <input type="text" name="barcode" value={formData.barcode} onChange={handleChange} className="w-full p-3 bg-gray-50 rounded-2xl border focus:border-emerald-500 outline-none transition" placeholder="เลขบาร์โค้ด (ว่างได้)" />
-                                            <p className="text-[10px] text-gray-400 ml-1 mt-1">* เคล็ดลับ: แตะหน้าจอเพื่อโฟกัสภาพให้ชัดก่อนกดถ่าย</p>
                                         </div>
-                                        {/* ปุ่มเปิดแอปกล้องมือถือสแกนโดยตรง (Native 100%) */}
-                                        <input type="file" accept="image/*" capture="environment" className="hidden" ref={nativeScannerRef} onChange={handleNativeBarcodeScan} />
+                                        {/* เปิด Scanner เต็มจอ */}
                                         <button 
                                             type="button" 
-                                            onClick={() => nativeScannerRef.current.click()} 
-                                            className={`mt-5 p-3 text-white rounded-2xl shadow-lg transition ${isScanning ? 'bg-indigo-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'}`}
-                                            disabled={isScanning}
+                                            onClick={() => setIsLiveScannerOpen(true)} 
+                                            className="mt-5 p-3 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 shadow-lg shadow-emerald-100 transition"
                                         >
-                                            {isScanning ? <IconCloudUpload className="animate-spin-slow" /> : <IconCamera />}
+                                            <IconCamera />
                                         </button>
                                     </div>
 
@@ -528,7 +564,6 @@
                                     )}
 
                                     <div className="flex gap-2">
-                                        {/* ปุ่ม AI ดึงข้อมูลทั้งหมดรวมถึงชื่อ/ราคา */}
                                         <input type="file" ref={fileInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                                         <button type="button" onClick={() => fileInputRef.current.click()} className="flex-1 py-3 bg-emerald-50 text-emerald-700 border-2 border-emerald-200 rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-emerald-100 transition shadow-sm"><IconSparkles /> AI ถ่ายรูปเพื่อดึงข้อมูลทั้งหมด</button>
                                     </div>
@@ -776,6 +811,23 @@
                                         </div>
                                     </div>
 
+                                    <div className="pt-2 border-t">
+                                        <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">สำรองไฟล์ (ในเครื่อง)</p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button onClick={exportBackup} className="py-3 bg-gray-800 text-white rounded-2xl text-xs font-bold hover:bg-black transition">ส่งออก JSON</button>
+                                            <label className="py-3 bg-gray-100 text-gray-700 border border-gray-200 rounded-2xl text-xs font-bold text-center cursor-pointer hover:bg-gray-200 transition flex items-center justify-center">
+                                                นำเข้า JSON/Excel
+                                                <input type="file" accept=".json, .xlsx, .xls" onChange={importBackup} className="hidden" />
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    {/* Clear Data Button */}
+                                    <div className="pt-4 mt-2 border-t">
+                                        <button onClick={initiateClearData} className="w-full py-3 bg-red-50 text-red-600 border border-red-100 rounded-2xl text-xs font-bold hover:bg-red-100 transition flex items-center justify-center gap-2">
+                                            <IconTrash2 /> ล้างข้อมูลทั้งหมด (Clear Data)
+                                        </button>
+                                    </div>
                                 </div>
                                 <button onClick={() => setShowSettings(false)} className="w-full py-4 bg-emerald-700 text-white rounded-2xl font-black mt-4">ปิดหน้าต่าง</button>
                             </div>
